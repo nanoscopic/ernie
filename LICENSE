@@ -1,3 +1,19 @@
+All code distributed by this project is licensed under the MIT License. This is done so that the project can be used commercially without being encumbered by restrictions.
+
+Note that it does use Perl libraries under the Perl license, but that should not restrict or otherwise hamper the use.
+
+The various used other components have the following licenses:
+* Chartist: Do What the fuck you want to public license ( Public Domain Essentially )
+* wkhtmltopdf: GPLv3
+* protocut: MIT License ( based off PrototypeJS: http://prototypejs.org/license.html )
+* PageSpanner: MIT License
+* Template::Bare: Perl License ( Based off Text::Template: Perl License )
+
+Note that if any changes are made to the GPLv3 related components, and potentially to the interfaces connecting to them, that such code will need to be released publicly under the GPLv3 as well.
+
+Modifications have been made to Chartist. Source code of those modifications are included and should be considered to be donated to the project and in the same license as that project.
+
+----
 The MIT License (MIT)
 
 Copyright (c) 2015 David Helkowski

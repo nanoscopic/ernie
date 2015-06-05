@@ -1,0 +1,80 @@
+<!doctype html>
+<html>
+<head>
+  <script src='base.js'></script>
+  <script src='dom.js'></script>
+  <script src='ajax.js'></script>
+  <script src="PageSpanner.js"></script>
+  <script>
+  Function.prototype.bind = Function.prototype.bind || function (thisp) {
+    var fn = this;
+    return function () {
+      return fn.apply(thisp, arguments);
+    };
+  };
+  </script>
+  <script src="dist/chartist.js"></script>   
+  <script src="chart_stuff.js"></script>
+  <script>
+  function go() {
+      new Ajax( "config.json", { onComplete: go2 } );
+  }
+  var curpage;
+  var config;
+  function go2( response ) {
+    eval( "config = " + response.transport.responseText );
+    new Ajax( "out.json", { onComplete: go3 } );
+  }
+  function go3( response ) {
+    var out;
+    eval( "out = " + response.transport.responseText );
+    var spanner = new PageSpanner( out.tables );
+    var pages = config.pages;
+    for( var i=0;i<pages.length;i++ ) {
+      var page = pages[i];
+      spanner.add_items( page );
+    }
+  }
+  </script>
+  <style>
+  @import url('dist/chartist.min.css');
+  .ct-chart-pie .ct-label {
+    fill: rgba(255,255,255,1) !important;
+  }
+  .ct-chart-bar .ct-label {
+    color: rgba(0,0,0,1) !important;
+    text-align: center;
+  }
+  @font-face {
+    font-family: 'Open Sans';
+    font-style: normal;
+    font-weight: 400;
+    src: url(opensans.ttf) format('truetype');
+  }
+  body, td, th {
+    font-family: 'Open Sans';
+  }
+  
+  table {
+    margin-bottom: 25px;
+  }
+  html, body {
+    padding: 0px;
+    margin: 0px;
+    height: 120%;
+  }
+  .page {
+    border: solid 1px white;
+    /*height: 70px;*/
+    width: 800px;
+  }
+  .pageDone {
+    /*height: 1085px;*//* 1090 */
+    min-height: 100%;
+  }
+  
+  </style>
+</head>
+<body onload='go()'>
+</body>
+</html>

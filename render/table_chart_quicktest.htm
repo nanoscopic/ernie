@@ -1,0 +1,333 @@
+<head>
+<style>
+@import url('dist/chartist.min.css');
+.ct-chart-pie .ct-label {
+  fill: rgba(255,255,255,1) !important;
+}
+.ct-chart-bar .ct-label {
+  color: rgba(0,0,0,1) !important;
+  text-align: center;
+}
+@font-face {
+  font-family: 'Open Sans';
+  font-style: normal;
+  font-weight: 400;
+  src: url(opensans.ttf) format('truetype');
+}
+body, td, th {
+  font-family: 'Open Sans';
+}
+</style>
+<script>
+Function.prototype.bind = Function.prototype.bind || function (thisp) {
+  var fn = this;
+  return function () {
+    return fn.apply(thisp, arguments);
+  };
+};
+</script>
+<script src="dist/chartist.js"></script>
+<script src="base.js"></script>
+<script src="dom.js"></script>
+<script src="ajax.js"></script>
+<script>
+
+function addLabel( eventEmitter, useForeignObject, positionalData, group, classes, axis, index, label ) {
+  var labelElement;
+  if( useForeignObject ) {
+    var content = '<span class="' + classes.join(' ') + '">' + label + '</span>';
+    labelElement = group.foreignObject( 
+      content,
+      Chartist.extend( 
+        {
+          style: 'overflow: visible;'
+        },
+        positionalData
+      )
+    );
+  } 
+  else {
+    labelElement = group.elem('text', positionalData, classes.join(' ')).text( label );
+  }
+  
+  eventEmitter.emit('draw', Chartist.extend({
+    type: 'label',
+    axis: axis,
+    index: index,
+    group: group,
+    element: labelElement,
+    text: label
+  }, positionalData));
+}
+Chartist.createLabel = function(projectedValue, index, labels, axis, axisOffset, labelOffset, group, classes, useForeignObject, eventEmitter) {
+  var positionalData = {};
+  positionalData[axis.units.pos] = projectedValue.pos + labelOffset[axis.units.pos];
+  positionalData[axis.counterUnits.pos] = labelOffset[axis.counterUnits.pos];
+  positionalData[axis.units.len] = projectedValue.len + 50; // + 50 allows a label to go past it's column
+  positionalData[axis.counterUnits.len] = axisOffset;
+  
+  var label = labels[ index ];
+  
+  if( label.indexOf && label.indexOf("\n") != -1 ) {
+    var lines = label.split("\n");
+    for( var i  in lines ) {
+      var line = lines[i];
+      addLabel( eventEmitter, useForeignObject, positionalData, group, classes, axis, index, line );
+      positionalData[ axis.counterUnits.pos ] += 17;
+    }
+  }
+  else addLabel( eventEmitter, useForeignObject, positionalData, group, classes, axis, index, label );
+};
+
+
+function ctPointLabels(options) {
+  return function ctPointLabels(chart) {
+    var defaultOptions = {
+      labelClass: 'ct-label',
+      labelOffset: {
+        x: 0,
+        y: -10
+      },
+      textAnchor: 'middle'
+    };
+
+    options = Chartist.extend({}, defaultOptions, options);
+
+    if(chart instanceof Chartist.Line) {
+      chart.on('draw', function(data) {
+        if(data.type === 'point') {
+          data.group.elem('text', {
+            x: data.x + options.labelOffset.x,
+            y: data.y + options.labelOffset.y,
+            style: 'text-anchor: ' + options.textAnchor
+          }, options.labelClass).text(data.value);
+        }
+      });
+    }
+  }
+}
+function std_colors( i ) {
+  var colors = [
+      [128,166,212],
+      [253,133,175],
+      [255,156,90],
+      [101,198,124],
+      [90,204,194],
+      [84,199,239],
+      [255,194,103],
+      [255,128,129]
+  ];
+  var col = [];
+  for( var j in colors ) {
+    var color = colors[j];
+    col.push( 'rgb('+color[0]+','+color[1]+','+color[2]+')' );
+  }
+  return col[ i ] || 'rgb(192,192,192)';
+}
+
+//var json = {"tables":{"table1":{"groups":[{"sets":[{"detail":["    <td>Alice</td>\n    <td>24</td>\n"],"footer":["    <td></td>\n    <td>Sum => 25</td>\n"],"header":["    <th>F</th>\n"]},{"detail":["    <td>Bob</td>\n    <td>21</td>\n","    <td>Joe</td>\n    <td>23</td>\n"],"footer":["    <td></td>\n    <td>Sum => 51</td>\n"],"header":["    <th>M</th>\n"]}],"name":"gender"}],"footer":["    <td>/Name</td>\n    <td>/Age</td>\n"],"header":["    <th>Name</th>\n    <th>Age</th>\n"]}}};
+var bid = 0;
+function go() {
+  new Ajax( "out_13.json", { onComplete: go2 } );
+}
+function go2( response ) {
+  var json;
+  eval( "json = " + response.transport.responseText );
+  
+  
+  var tables = json.tables;
+  for( var tb_name in tables ) {
+    if( tb_name == 'data' ) continue;
+    var table = tables[ tb_name ];
+    var tb = add_table();
+    /*var tr = _newtr(2);
+    _append( tb.tbody, tr.tr );
+    _append( tr.td1, _newtext('test') );
+    _append( tr.td2, _newtext('test2') );*/
+    run_table( tb, table, tb_name );
+    
+    if( table['xys'] ) {
+      add_graph( table['xys'], table['chart'] || 0, tb_name );
+    }
+    
+  }
+  //_append( sp, _newbr() );
+}
+
+function add_table() {
+  var tb = _newtable();
+  var sp = _getel('space');
+  _append( sp, tb.table );
+  _append( sp, _newbr() );
+  tb.table.border = 1;
+  return tb;
+}
+
+
+function add_graph( xys, inf, tbname ) {
+  var div = _newdiv();
+  var sp = _getel('space');
+  _append( sp, div );
+  _append( sp, _newbr() );
+  
+  bid++;
+  div.className = 'ct-chart';
+  div.id = 'bid' + bid;
+  var ref = '.ct-chart#bid' + bid;
+  var xs = [];
+  var ys = [];
+  var y1 = [], y2 = [];
+  var multiy = 0;
+  for( var xyi in xys ) {
+    var xy = xys[ xyi ];
+    var x = xy.x;
+    var y = xy.y;
+    xs.push( x );
+    if( typeof( y ) != 'object' ) {
+      ys.push( y );
+    }
+    else {
+      y1.push( y[0] );
+      y2.push( y[1] );
+      multiy = 1;
+    }
+  }
+  var series = [ ys ];
+  
+  var ops = {
+    width: 600,
+    height: 300
+  };
+  if( multiy ) {
+    series = [ y1, y2 ];
+    ops.stackBars = 1;
+  }
+  
+  var chart;
+  
+  var type = 'bar';
+  if( inf ) {
+    type = inf.type;
+    if( inf.options ) {
+      var addops = inf.options;
+      if( addops.labelInterpolationFnc ) {
+        var lif;
+        eval( 'lif = ' + addops.labelInterpolationFnc );
+        addops.labelInterpolationFnc = lif;
+      }
+      if( addops.axisX ) { addops.axisX.offset = addops.axisX.offset*1; }
+      if( addops.axisY ) { addops.axisY.offset = addops.axisY.offset*1; }
+      fix_numbers( inf.options );
+      _mux( ops, inf.options );
+    }
+    if( inf.jitterLabels ) {
+      for( var i in xs ) {
+        if( i%2 == 1 ) {
+          xs[ i ] = "\n" + xs[ i ];
+        }
+      }
+    }
+  }
+  if( type == 'bar' ) {
+    chart = new Chartist.Bar( ref, {
+        labels: xs,
+        series: series
+    }, ops );
+  }
+  if( type == 'pie' ) {
+    series = series[0];
+    for( var i in series ) {
+      series[i] = series[i] * 1;
+    }
+    chart = new Chartist.Pie( ref, {
+        //labels: xs,
+        series: series
+    }, ops );
+  }
+  if( inf ) {
+    if( inf.onDraw ) {
+      var ofunc;
+      eval( 'var ofunc = ' + inf.onDraw );
+      chart.on('draw', ofunc );
+    }
+  }
+  
+  return div;
+}
+
+function fix_numbers( hash ) {
+  var dud = {};
+  for( var i in hash ) {
+    if( i in dud ) continue;
+    var v = hash[i];
+    if( typeof( v ) == 'object' ) fix_numbers( v );
+    if( v == 'true' ) v = true;
+    else if( v*1 == v ) v = v * 1;
+    hash[ i ] = v;
+  }
+}
+
+function _mux( a, b ) {
+  var dud = {};
+  for( var i in b ) {
+    if( i in dud ) continue;
+    var v = b[i];
+    a[ i ] = v;
+  }
+}
+
+function run_table( tb, table, tbname ) {
+  var header = table.header;
+  var detail = table.detail;
+  var footer = table.footer;
+  
+  if( header ) {
+    for( var hi in header ) {
+      var one_header = header[ hi ];
+      var trh = _newel('tr');
+      trh.innerHTML = one_header;
+      _append( tb.tbody, trh );
+    }
+  }
+  
+  if( detail ) raw_details( tb, detail );
+  var groups = table.groups;
+  if( groups ) {
+    for( var i in groups ) {
+      var group = groups[i];
+      var name = group.name;
+      var sets = group.sets;
+      for( var j in sets ) {
+        var set = sets[j];
+        run_table( tb, set, name );
+        if( set.use_new_table ) {
+          tb = add_table();
+        }
+      }
+      
+      if( group['xys'] ) {
+        add_graph( group['xys'], table.chart, tbname );
+      }
+    }
+  }
+  
+  if( footer ) {
+    var trf = _newel('tr');
+    trf.innerHTML = footer;
+    _append( tb.tbody, trf );
+  }
+}
+
+function raw_details( tb, detail ) {
+  for( var i in detail ) {
+    var row = detail[i];
+    var trf = _newel('tr');
+    trf.innerHTML = row;
+    _append( tb.tbody, trf );
+  }
+}
+</script>
+</head>
+<body onload='go()'>
+  <div id='space'></div>
+</body>

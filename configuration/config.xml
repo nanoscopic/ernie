@@ -1,0 +1,86 @@
+<xml>
+  <datasources>
+    <func ns="reporting" name="detail" func="fn_detail">
+      <virtuals>
+        <v name="a_with_b">{
+          $row{'a'} . $row{'b'}
+        }</v>
+      </virtuals>
+    </func>
+  </datasources>
+  
+  <page><![CDATA[
+  Report ID: {$ds{'detail'}->{"report_id"}}
+  ]]></page>
+  
+  <page><![CDATA[
+    Table of Contents
+  ]]></page>
+  
+  <page><![CDATA[
+    {:index:1:Introduction:<h1>Introduction</h1>}
+      Introduction Text
+      {:index:2:Cats:<h2>Cats</h2>}
+      {:table:{table('cats')}}
+  ]]></page>
+  
+  <page><![CDATA[
+    {:index:1:Summary:<h1>Summary</h1>}
+    
+    <br>
+    <div style="width:40%; display:inline-block" id='mini_cats_a'>
+      Mini Cats A
+    </div>
+    {:tableid:mini_cats_a:{table('mini_cats_a')}}
+    {:chartid:mini_cats_a:{chart('mini_cats_a')}}
+    
+    <div style="width:40%; display:inline-block" id='mini_cats_b'>
+      Mini Cats B
+    </div>
+    {:tableid:mini_cats_b:{table('mini_cats_b')}}
+    {:chartid:mini_cats_b:{chart('mini_cats_b')}}
+  ]]></page>
+  
+  <table name="cats" ds="detail">
+    <header>
+      <th>A</th>
+      <th>B</th>
+    </header>
+    <detail>
+      <set name="abc">{count_distinct(0,'a')}</set>
+      <td>
+      {
+        $row{'a'}
+      }
+      </td>
+      <td>
+      {
+        $row{'b'}
+      }
+      </td>
+    </detail>
+  </table>
+  
+  <table name="mini_cats_a" ds="detail">
+    <header>
+      <th colspan=2>Breakdown</th>
+    </header>
+    <header>
+      <th>C</th>
+      <th>Sum of F</th>
+    </header>
+    <group by="c">
+      <header>
+        <td>{$row1{'c'}}</td>
+        <td name="cnt">{
+          count_where(
+            0,
+            'sum_this',
+            'f'
+          )
+        }</td>
+        <sort dir="asc">{$row{'sort_by_this'}}</sort>
+      </header>
+    </group>
+  </table>
+</xml>
