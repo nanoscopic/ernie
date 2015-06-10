@@ -8,7 +8,9 @@ use Template::Bare qw/fill_in_string tpl_to_chunks/;
 
 use JSON::XS;
 
-my ( $ob, $xml ) = XML::Bare->new( file => '../configuration/config.xml' );
+my $report_type = $ARGV[0];
+
+my ( $ob, $xml ) = XML::Bare->new( file => "../configuration/config_$report_type.xml" );
 $xml = $xml->{'xml'};
 my $pages = forcearray( $xml->{'page'} );
 
@@ -20,7 +22,7 @@ for my $page ( @$pages ) {
   push( @$pagearr, $output );
 }
 
-open( my $confj, ">../configuration/config.json" );
+open( my $confj, ">../configuration/config_$report_type.json" );
 print $confj JSON::XS->new->utf8->pretty(1)->encode( $all );
 close $confj;
 
