@@ -1,13 +1,14 @@
-#!/use/bin/perl -w
+#!/usr/bin/perl -w
 use strict;
 use Data::Dumper;
 use lib '.';
 use XML::Bare qw/forcearray xval/;
+use lib '../../Template-Bare/lib';
 use Template::Bare qw/fill_in_string tpl_to_chunks/;
 
 use JSON::XS;
 
-my ( $ob, $xml ) = XML::Bare->new( file => 'config.xml' );
+my ( $ob, $xml ) = XML::Bare->new( file => '../configuration/config.xml' );
 $xml = $xml->{'xml'};
 my $pages = forcearray( $xml->{'page'} );
 
@@ -19,7 +20,9 @@ for my $page ( @$pages ) {
   push( @$pagearr, $output );
 }
 
-print JSON::XS->new->utf8->pretty(1)->encode( $all );
+open( my $confj, ">../configuration/config.json" );
+print $confj JSON::XS->new->utf8->pretty(1)->encode( $all );
+close $confj;
 
 sub slurp {
   my $file = shift;
