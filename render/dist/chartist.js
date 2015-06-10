@@ -491,7 +491,7 @@ var Chartist = {
    * @param {Number} referenceValue The reference value for the chart.
    * @return {Object} All the values to set the bounds of the chart
    */
-  Chartist.getBounds = function (axisLength, highLow, scaleMinSpace, referenceValue) {
+  Chartist.getBounds = function (axisLength, highLow, scaleMinSpace, referenceValue, options) {
     var i,
       newMin,
       newMax,
@@ -528,7 +528,18 @@ var Chartist = {
     bounds.min = Math.floor(bounds.low / Math.pow(10, bounds.oom)) * Math.pow(10, bounds.oom);
     bounds.max = Math.ceil(bounds.high / Math.pow(10, bounds.oom)) * Math.pow(10, bounds.oom);
     bounds.range = bounds.max - bounds.min;
-    bounds.step = Math.pow(10, bounds.oom);
+    
+    if( options.step ) {
+      var s = options.step;
+      if( s == 'whole' ) {
+        var n = Math.pow(10, bounds.oom);
+        if( n > 1 ) bounds.step = Math.floor( n );
+        else bounds.step = 1;
+      }
+      else bounds.step = s;
+    }
+    else bounds.step = Math.pow(10, bounds.oom);
+    
     bounds.numberOfSteps = Math.round(bounds.range / bounds.step);
 
     // Optimize scale step by checking if subdivision is possible based on horizontalGridMinSpace
@@ -536,6 +547,7 @@ var Chartist = {
     var length = Chartist.projectLength(axisLength, bounds.step, bounds),
       scaleUp = length < scaleMinSpace;
 
+    if( !options.step )
     while (true) {
       if (scaleUp && Chartist.projectLength(axisLength, bounds.step, bounds) <= scaleMinSpace) {
         bounds.step *= 2;
@@ -2329,7 +2341,7 @@ var Chartist = {
       labelOffset,
       options);
 
-    this.bounds = Chartist.getBounds(this.axisLength, options.highLow, options.scaleMinSpace, options.referenceValue);
+    this.bounds = Chartist.getBounds(this.axisLength, options.highLow, options.scaleMinSpace, options.referenceValue, options);
   }
 
   function projectValue(value) {
@@ -2518,7 +2530,8 @@ var Chartist = {
       },
       {
         highLow: highLow,
-        scaleMinSpace: options.axisY.scaleMinSpace
+        scaleMinSpace: options.axisY.scaleMinSpace,
+        step: options.step || 0
       }
     );
 
@@ -2916,7 +2929,8 @@ var Chartist = {
         {
           highLow: highLow,
           scaleMinSpace: options.axisX.scaleMinSpace,
-          referenceValue: 0
+          referenceValue: 0,
+          step: options.step || 0
         }
       );
     } else {
@@ -2950,7 +2964,8 @@ var Chartist = {
         {
           highLow: highLow,
           scaleMinSpace: options.axisY.scaleMinSpace,
-          referenceValue: 0
+          referenceValue: 0,
+          step: options.step || 0
         }
       );
     }
@@ -3034,15 +3049,29 @@ var Chartist = {
           'value': value,
           'meta': Chartist.getMetaData(series, valueIndex)
         }, Chartist.xmlNs.uri);*/
+        var x,y,height,x2;
         var width = options.barWidth || 20;
-        var x = positions.x = positions.x2 - ( width / 2 ); delete positions.x2;
-        var y = positions.y = positions.y2; delete positions.y2;
-        positions.width = width; delete positions.x1;
-        positions.height = positions.y1 - y; delete positions.y1;
-        bar = seriesGroups[seriesIndex].elem('rect', positions, options.classNames.bar).attr({
-          'value': value,
-          'meta': Chartist.getMetaData(series, valueIndex)
-        }, Chartist.xmlNs.uri);
+        if( options.horizontalBars ) {
+            x2 = positions.x2;
+            y = positions.y = positions.y2 - ( width / 2 ); delete positions.y2;
+            x = positions.x = positions.x1; delete positions.x1;
+            positions.height = height = width; delete positions.y1;
+            positions.width = positions.x2 - x; delete positions.x2;
+            bar = seriesGroups[seriesIndex].elem('rect', positions, options.classNames.bar).attr({
+              'value': value,
+              'meta': Chartist.getMetaData(series, valueIndex)
+            }, Chartist.xmlNs.uri);
+        }
+        else {
+            x = positions.x = positions.x2 - ( width / 2 ); delete positions.x2;
+            y = positions.y = positions.y2; delete positions.y2;
+            positions.width = width; delete positions.x1;
+            positions.height = positions.y1 - y; delete positions.y1;
+            bar = seriesGroups[seriesIndex].elem('rect', positions, options.classNames.bar).attr({
+              'value': value,
+              'meta': Chartist.getMetaData(series, valueIndex)
+            }, Chartist.xmlNs.uri);
+        }
         
         var text = '';
         if( options.stackBars ) {
@@ -3054,11 +3083,20 @@ var Chartist = {
         }
         
         if( !options.stackBars || seriesIndex ) {
-          seriesGroups[seriesIndex].elem('text', {
-            dx: x + ( width / 2 ),
-            dy: y - 5,
-            'text-anchor': 'middle'
-          }, options.classNames.label).text(text);
+          if( options.horizontalBars ) {
+            seriesGroups[seriesIndex].elem('text', {
+              dx: x2 + 10,
+              dy: y + 5 + ( height / 2 ),
+              'text-anchor': 'middle'
+            }, options.classNames.label).text(text);
+          }
+          else {
+            seriesGroups[seriesIndex].elem('text', {
+              dx: x + ( width / 2 ),
+              dy: y - 5,
+              'text-anchor': 'middle'
+            }, options.classNames.label).text(text);
+          }
         }
         
         this.eventEmitter.emit('draw', Chartist.extend({
