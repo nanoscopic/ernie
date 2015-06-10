@@ -3,14 +3,15 @@ use strict;
 use XML::Bare qw/forcearray xval/;
 use Data::Dumper;
 #use Text::Template qw/fill_in_string/;
-use lib '.';
+use lib '../../Template-Bare/lib';
 use Template::Bare qw/fill_in_string/;
 use JSON::XS;
 
-my $report_run_id = $ARGV[0] || 97;
+my $report_type = $ARGV[0];
+my $report_run_id = $ARGV[1] || 97;
 
 #my ( $ob1, $conf ) = XML::Bare->new( file => 'simple_config.xml' );
-my ( $ob1, $conf ) = XML::Bare->new( file => 'config.xml' );
+my ( $ob1, $conf ) = XML::Bare->new( file => "../configuration/config_$report_type.xml" );
 $conf = $conf->{'xml'};
 
 my %vmap;
@@ -35,7 +36,7 @@ for my $tb_name ( keys %$tables ) {
   #my $tb_name = xval $table->{'name'};
   $table_outputs->{ $tb_name } = $tb_out;
 }
-open( OUT, ">out_$report_run_id.json" );
+open( OUT, ">../data/out_${report_type}_$report_run_id.json" );
 print OUT JSON::XS->new->utf8->pretty(1)->encode( $output );
 close( OUT );
 #print Dumper( $output );
@@ -43,7 +44,7 @@ close( OUT );
 sub read_data {
   #my ( $ob2, $data ) = XML::Bare->simple( file => 'simple_data.xml' );
   
-  my ( $ob2, $data ) = XML::Bare->simple( file => "raw_$report_run_id.xml" );
+  my ( $ob2, $data ) = XML::Bare->simple( file => "../data/raw_${report_type}_$report_run_id.xml" );
   #$data = $data->{'xml'};
   return $data;
 }
@@ -295,18 +296,44 @@ sub run_type {
       }
       
       if( @$gpsets && $gpsets->[0]{'sort'} ) {
-        #print STDERR Dumper( $gpsets );
         my @sorted;
         my $dir = $gpsets->[0]{'sortdir'};
+        
+        my @cleansets;
+        my $j = 0;
         for( my $i=0;$i<scalar @$gpsets; $i++ ) {
           my $item = $gpsets->[ $i ];
-          $item->{'pi'} = $i;
+          next if( !$item || !%$item );
+          $item->{'pi'} = $j;
+          $j++;
+          push( @cleansets, $item );
         }
+        @$gpsets = @cleansets;
+        
+        #print STDERR Dumper( $gpsets );
+        
         if( $dir eq 'asc' ) { @sorted = sort { $a->{'sort'} <=> $b->{'sort'} } @$gpsets; }
         elsif( $dir eq 'desc' ) { @sorted = sort { $b->{'sort'} <=> $a->{'sort'} } @$gpsets; }
+        
         if( $gp->{'xys'} ) {
           my @sxys = ();
+          
           my $xys = $gp->{'xys'};
+          
+          #print STDERR Dumper( $xys );
+          
+          my @cleanxys;
+          for( my $i=0;$i<scalar @$xys; $i++ ) {
+            my $xy = $xys->[ $i ];
+            next if( !$xy );
+            push( @cleanxys, $xy );
+          }
+          @$xys = @cleanxys;
+          
+          my $numgpsets = scalar( @$gpsets );
+          my $numxys = scalar( @$xys );
+          #print STDERR "numgpsets: $numgpsets, numxys: $numxys\n";
+          
           for( my $i=0;$i<scalar @sorted; $i++ ) {
             my $item = $sorted[ $i ];
             my $n = $xys->[ $item->{'pi'} ];
@@ -315,6 +342,9 @@ sub run_type {
               delete $item->{'pi'};
             #}
           }
+          
+          #print STDERR Dumper( \@sxys );
+          
           $gp->{'xys'} = \@sxys;
           #print STDERR Dumper( $gp->{'xys'} );
         }
@@ -444,7 +474,7 @@ sub run_raw_type {
         $out .= "    <$th_td$cs>$val</$th_td>\n";
         if( $th->{'sort'} ) {
           $sort = $val;
-          if( $th->{'desc'} ) { $sort_dir = 'desc'; }
+          $sort_dir = xval( $th->{'sort'} ) || 'desc';
         }
       }
       if( $header->{'sort'} ) {
@@ -595,6 +625,95 @@ sub count_distinct_where {
   return $cnt;
 }
 
+sub min_where {
+  my ( $gp, $cond, $col ) = @_;
+  my $rows = $ctx->{'rows'};
+  my $min = 200000;
+  #my $ref = ref( $cond );
+  #print "ref:$ref\n";
+  if( !ref( $cond ) ) {
+    for my $row ( @$rows ) {
+      #print $row->{'times_retreaded'}. "\n";
+      if( $row->{ $cond } ) {
+        my $val = $row->{$col};
+        if( $val < $min ) { $min = $val; }
+      }
+    }
+  }
+  elsif( ref( $cond ) eq 'CODE' ) {
+    for my $row ( @$rows ) {
+      my $r = $cond->( $row );
+      #print $row->{'times_retreaded'}. " [$r]\n";
+      if( $r ) {
+        my $val = $row->{$col};
+        if( $val < $min ) { $min = $val; }
+      }
+    }
+  }
+  
+  if( $min == 200000 ) { return ''; }
+  return $min;
+}
+
+sub max_where {
+  my ( $gp, $cond, $col ) = @_;
+  my $rows = $ctx->{'rows'};
+  my $max = 0;
+  #my $ref = ref( $cond );
+  #print "ref:$ref\n";
+  if( !ref( $cond ) ) {
+    for my $row ( @$rows ) {
+      #print $row->{'times_retreaded'}. "\n";
+      if( $row->{ $cond } ) {
+        my $val = $row->{$col};
+        if( $val > $max ) { $max = $val; }
+      }
+    }
+  }
+  elsif( ref( $cond ) eq 'CODE' ) {
+    for my $row ( @$rows ) {
+      my $r = $cond->( $row );
+      #print $row->{'times_retreaded'}. " [$r]\n";
+      if( $r ) {
+        my $val = $row->{$col};
+        if( $val > $max ) { $max = $val; }
+      }
+    }
+  }
+  
+  if( $max == 0 ) { return ''; }
+  return $max;
+}
+
+sub sum_where {
+  my ( $gp, $cond, $col ) = @_;
+  my $rows = $ctx->{'rows'};
+  my $tot = 0;
+  #my $ref = ref( $cond );
+  #print "ref:$ref\n";
+  if( !ref( $cond ) ) {
+    for my $row ( @$rows ) {
+      #print $row->{'times_retreaded'}. "\n";
+      if( $row->{ $cond } ) {
+        my $val = $row->{$col};
+        $tot += $val;
+      }
+    }
+  }
+  elsif( ref( $cond ) eq 'CODE' ) {
+    for my $row ( @$rows ) {
+      my $r = $cond->( $row );
+      #print $row->{'times_retreaded'}. " [$r]\n";
+      if( $r ) {
+        my $val = $row->{$col};
+        $tot += $val;
+      }
+    }
+  }
+  
+  return $tot;
+}
+
 sub sum_distinct {
   my ( $gp, $col_distinct, $col ) = @_;
   my $rows = $ctx->{'rows'};
@@ -632,6 +751,12 @@ sub li {
     $v =~ s/(\[|\])//g;
   }
   return $v;
+}
+
+sub lip {
+  my ( $s, $p, $n ) = @_;
+  if( $n == 1 ) { return $s; }
+  return $p;
 }
 
 sub sum {
