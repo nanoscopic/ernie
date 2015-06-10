@@ -4,7 +4,7 @@
   <script src='base.js'></script>
   <script src='dom.js'></script>
   <script src='ajax.js'></script>
-  <script src="PageSpanner.js"></script>
+  <script src="../../PageSpanner/PageSpanner.js"></script>
   <script>
   Function.prototype.bind = Function.prototype.bind || function (thisp) {
     var fn = this;
@@ -72,7 +72,93 @@
     /*height: 1085px;*//* 1090 */
     min-height: 100%;
   }
+
   
+  .c {
+    text-align: center;
+  }
+  .location {
+    font-size: 13pt;
+    font-weight: bold;
+  }
+  .survey_type {
+    font-size: 20pt;
+    text-align: center;
+  }
+  .b1, .b2 {
+    display: inline-block;
+    padding-right: 30px;
+  }
+  .b2 {
+    padding-left: 20px;
+  }
+  .num {
+    display: inline-block;
+    text-align: left;
+    padding-left: 10px;
+  }
+  #surveys th {
+    text-align: left;
+    text-decoration: underline;
+  }
+  #surveys td {
+    padding-right: 20px;
+  }
+  .minichart {
+    display: inline-block;
+    width: 95%;
+    border: solid 1px #999;
+    margin-right: 20px;
+  }
+  .minichart th {
+    background: #eee;
+    border-bottom: solid 1px #999;
+    border-left: solid 1px #999;
+  }
+  .minichart td {
+    padding: 0px 8px;
+    border-bottom: solid 1px #999;
+    border-left: solid 1px #999;
+  }
+  .minichart table {
+    position: relative;
+    left: -1px;
+    width: 100%;
+  }
+  .inner {
+    height: 250px;
+  }
+  .mixed th {
+    background: #eee;
+    border-bottom: solid 1px #999;
+    border-left: solid 1px #999;
+    padding: 2px 4px;
+  }
+  .mixed {
+    border-top: solid 1px #999;
+    border-right: solid 1px #999;
+  }
+  table.mixed, div.bigbox, div.page {
+    page-break-inside: avoid;
+  }
+  .mixed td {
+    border-bottom: solid 1px #999;
+    border-left: solid 1px #999;
+    padding: 2px 4px;
+  }
+  .bigbox {
+    border: solid 1px #999;
+  }
+  .biggraph {
+    width: 400px;
+    height: 400px;
+    background: #eee;
+    margin-left: 20px;
+    margin-bottom: 20px;
+  }
+  .noborder td {
+    border: 0
+  }
   </style>
 </head>
 <body onload='go()'>
