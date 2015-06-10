@@ -128,7 +128,7 @@ function std_colors( i ) {
 //var json = {"tables":{"table1":{"groups":[{"sets":[{"detail":["    <td>Alice</td>\n    <td>24</td>\n"],"footer":["    <td></td>\n    <td>Sum => 25</td>\n"],"header":["    <th>F</th>\n"]},{"detail":["    <td>Bob</td>\n    <td>21</td>\n","    <td>Joe</td>\n    <td>23</td>\n"],"footer":["    <td></td>\n    <td>Sum => 51</td>\n"],"header":["    <th>M</th>\n"]}],"name":"gender"}],"footer":["    <td>/Name</td>\n    <td>/Age</td>\n"],"header":["    <th>Name</th>\n    <th>Age</th>\n"]}}};
 var bid = 0;
 function go() {
-  new Ajax( "out_13.json", { onComplete: go2 } );
+  new Ajax( "out.json", { onComplete: go2 } );
 }
 function go2( response ) {
   var json;
@@ -180,6 +180,7 @@ function add_graph( xys, inf, tbname ) {
   var multiy = 0;
   for( var xyi in xys ) {
     var xy = xys[ xyi ];
+    if( !xy ) continue;
     var x = xy.x;
     var y = xy.y;
     xs.push( x );
