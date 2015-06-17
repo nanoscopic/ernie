@@ -4,42 +4,79 @@ use XML::Bare qw/forcearray xval/;
 use Data::Dumper;
 #use Text::Template qw/fill_in_string/;
 use lib '../../Template-Bare/lib';
-use Template::Bare qw/fill_in_string/;
+use Template::Bare qw/fill_in_string tpl_to_chunks/;
 use JSON::XS;
 
 my $report_type = $ARGV[0];
 my $report_run_id = $ARGV[1] || 97;
 
-#my ( $ob1, $conf ) = XML::Bare->new( file => 'simple_config.xml' );
+my %vmap;
+my $alldata;
+my %map;
+
 my ( $ob1, $conf ) = XML::Bare->new( file => "../configuration/config_$report_type.xml" );
 $conf = $conf->{'xml'};
 
-my %vmap;
-my $alldata = read_data();
+transform_data();
+config_to_json_tpl();
 
-my $tables = read_table_confs( forcearray( $conf->{'table'} ) );
-delete $tables->{'data'};
-
-my $output = {};
-my $table_outputs = {};
-$output->{'tables'} = $table_outputs;
-
-my $section = "all";
-
-#for my $table ( @$tables ) {
-for my $tb_name ( keys %$tables ) {
-  if( $section eq $tb_name ) {}
-  elsif( $section eq 'all' ) {}
-  else { next; }
-  #run_table( 'table1' );
-  my $tb_out = run_table( $tables->{ $tb_name } );
-  #my $tb_name = xval $table->{'name'};
-  $table_outputs->{ $tb_name } = $tb_out;
+sub transform_data {
+  #my ( $ob1, $conf ) = XML::Bare->new( file => 'simple_config.xml' );
+  
+  $alldata = read_data();
+  
+  my $tables = read_table_confs( forcearray( $conf->{'table'} ) );
+  delete $tables->{'data'};
+  
+  my $output = {};
+  my $table_outputs = {};
+  $output->{'tables'} = $table_outputs;
+  
+  my $section = "all";
+  
+  #for my $table ( @$tables ) {
+  for my $tb_name ( keys %$tables ) {
+    if( $section eq $tb_name ) {}
+    elsif( $section eq 'all' ) {}
+    else { next; }
+    #run_table( 'table1' );
+    my $tb_out = run_table( $tables->{ $tb_name } );
+    #my $tb_name = xval $table->{'name'};
+    $table_outputs->{ $tb_name } = $tb_out;
+  }
+  open( OUT, ">../data/out_${report_type}_$report_run_id.json" );
+  print OUT JSON::XS->new->utf8->pretty(1)->encode( $output );
+  close( OUT );
+  #print Dumper( $output );
 }
-open( OUT, ">../data/out_${report_type}_$report_run_id.json" );
-print OUT JSON::XS->new->utf8->pretty(1)->encode( $output );
-close( OUT );
-#print Dumper( $output );
+
+sub config_to_json_tpl {
+  my $pages = forcearray( $conf->{'page'} );
+  
+  my %mapped;
+  for my $key ( keys %map ) {
+    #print "Key: $key\n";
+    my $dest = $map{ $key };
+    $mapped{ $key } = $alldata->{ $dest }{'row'};
+  }
+  #print Dumper( $mapped{ 'survey_info' } );
+  #exit;
+    
+  my $ctx = { data => \%mapped, report_id => $report_run_id };
+  $TPL::ctx = $ctx;
+  
+  my $pagearr = [];
+  my $all = { pages => $pagearr };
+  for my $page ( @$pages ) {
+    my $tpl = xval( $page );
+    my $output = tpl_to_chunks( $tpl, $ctx, 'TPL' );
+    push( @$pagearr, $output );
+  }
+  
+  open( my $confj, ">../configuration/config_$report_type.json" );
+  print $confj JSON::XS->new->utf8->pretty(1)->encode( $all );
+  close $confj;
+}
 
 sub read_data {
   #my ( $ob2, $data ) = XML::Bare->simple( file => 'simple_data.xml' );
@@ -72,7 +109,7 @@ sub run_table {
   
   my $sources_node = $conf->{'datasources'};
   my $sources = forcearray( $sources_node->{'func'} );
-  my %map;
+  
   
   #print Dumper( $sources_node );
   for my $source ( @$sources ) {
@@ -247,9 +284,7 @@ sub run_type {
         $gp_name = $by;
       }
       
-      if( $group->{'new_table_per_group'} ) {
-        $output->{'use_new_table'} = 1;
-      }
+      
       #$group->{'name'} = $gp_name;
       
       $output->{ 'groups'} ||= [];
@@ -257,6 +292,9 @@ sub run_type {
       
       my $gpsets = [];
       my $gp = { name => $gp_name, sets => $gpsets };
+      if( $group->{'new_table_per_group'} ) {
+        $gp->{'use_new_table'} = 1;
+      }
       push( $ogroups, $gp );
       
       my $gprows = group_data( $group, $rows );
@@ -791,4 +829,14 @@ sub max2 {
     if( $val > $max ) { $max = $val; }
   }
   return $max;
+}
+
+sub table {
+  my $tname = shift;
+  return "$tname";
+}
+
+sub chart {
+  my $cname = shift;
+  return "$cname";
 }
