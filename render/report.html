@@ -5,6 +5,7 @@
   <script src='dom.js'></script>
   <script src='ajax.js'></script>
   <script src="../../PageSpanner/PageSpanner.js"></script>
+  <script src="../../DomCascade/protocut/dom-cascade.js"></script>
   <script>
   Function.prototype.bind = Function.prototype.bind || function (thisp) {
     var fn = this;
@@ -34,6 +35,7 @@
       var page = pages[i];
       spanner.add_items( page );
     }
+    spanner.fillToc();
   }
   </script>
   <style>
@@ -58,19 +60,64 @@
   table {
     margin-bottom: 25px;
   }
-  html, body {
+  /*html, body {
     padding: 0px;
     margin: 0px;
     height: 120%;
   }
   .page {
     border: solid 1px white;
-    /*height: 70px;*/
     width: 800px;
+  }*/
+  
+  body {
+    width: 100%;
+    height: 100%;
+    margin: 0;
+    padding: 0;
   }
+  
+  * {
+    box-sizing: border-box;
+    -moz-box-sizing: border-box;
+  }
+  
+  .page {
+    width: 8.5in;
+    min-height: 11in;
+    height: 11in;
+    margin: 0 auto;
+    border: 3px blue solid;
+    background: white;
+    overflow: hidden;
+  }
+    
+  @page {
+      size: letter;
+      margin: 0;
+  }
+    
+  @media print {
+    html, body {
+        width: 8.5in;
+        height: 11in;        
+    }
+    .page {
+      margin: 0;
+      border: initial;
+      border-radius: initial;
+      width: initial;
+      min-height: initial;
+      box-shadow: initial;
+      background: initial;
+      page-break-after: always;
+    }
+  }
+  
   .pageDone {
     /*height: 1085px;*//* 1090 */
-    min-height: 100%;
+    /*min-height: 100%;*/
+    min-height: 11in !important;
   }
 
   
