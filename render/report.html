@@ -26,10 +26,54 @@
     eval( "config = " + response.transport.responseText );
     new Ajax( "out.json", { onComplete: go3 } );
   }
+  function make_page( box ) {
+    var cascade = new DomCascade();
+    box.style.position = 'relative';
+    var res = cascade.append( box, [
+      {
+        name: 'table',
+        style: {
+          position: 'absolute',
+          top: '0px',
+          height: '60px',
+          background: 'blue',
+          width: '100%'
+        },
+        sub: [
+          {
+            name: 'tr',
+            sub: [
+              {
+                name: 'td',
+                sub: { name: 'text', text: 'a' }
+              },
+              {
+                name: 'td',
+                sub: { name: 'text', text: 'b' }
+              }
+            ]
+          },
+        ]
+      },
+      {
+        name: 'div',
+        ref: 'inside',
+        style: {
+          position: 'absolute',
+          top: '60px',
+          bottom: '10px'
+        }
+      }
+    ] );
+    return res.refs.inside;
+  }
   function go3( response ) {
     var out;
     eval( "out = " + response.transport.responseText );
-    var spanner = new PageSpanner( out.tables );
+    var spanner = new PageSpanner( {
+      tables: out.tables,
+      page_tpl_generator: make_page
+    } );
     var pages = config.pages;
     for( var i=0;i<pages.length;i++ ) {
       var page = pages[i];
