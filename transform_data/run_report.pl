@@ -6,6 +6,9 @@ use Data::Dumper;
 use lib '../../Template-Bare/lib';
 use Template::Bare qw/fill_in_string tpl_to_chunks/;
 use JSON::XS;
+use lib '../../HTML-Bare/blib/lib';
+use lib '../../HTML-Bare/blib/arch';
+use HTML::Bare qw//;
 
 my $report_type = $ARGV[0];
 my $report_run_id = $ARGV[1] || 97;
@@ -69,13 +72,40 @@ sub config_to_json_tpl {
   my $all = { pages => $pagearr };
   for my $page ( @$pages ) {
     my $tpl = xval( $page );
-    my $output = tpl_to_chunks( $tpl, $ctx, 'TPL' );
-    push( @$pagearr, $output );
+    my $chunks = tpl_to_chunks( $tpl, $ctx, 'TPL' );
+    $chunks = combine_fragments( $chunks );
+    push( @$pagearr, $chunks );
   }
   
   open( my $confj, ">../configuration/config_$report_type.json" );
   print $confj JSON::XS->new->utf8->pretty(1)->encode( $all );
   close $confj;
+}
+
+sub combine_fragments {
+  my $in = shift;
+  my @out;
+  my @frags;
+  for my $chunk ( @$in ) {
+    my $type = $chunk->[ 0 ];
+    if( $type ) { # we have hit a non basic chunk, just dump everything to the output stream :(
+      if( @frags ) { push( @out, [ 0, join( '', @frags ) ] ); @frags = (); }
+      push( @out, $chunk );
+      next;
+    }
+    my $val = $chunk->[ 1 ];
+    push( @frags, $val );
+    my ( $ob, $html ) = HTML::Bare->new( text => join( '', @frags ) . $val );
+    my $res = $ob->get_parse_position();
+    if( $res->{'depth'} ) { # we still have a fragment
+    }
+    else { # fragment is finished, dump the fragments into the output
+      push( @out, [ 0, join( '', @frags ) ] ); 
+      @frags = ();
+    }
+  }
+  if( @frags ) { push( @out, [ 0, join( '', @frags ) ] ); @frags = (); }
+  return \@out;
 }
 
 sub read_data {
