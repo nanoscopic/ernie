@@ -85,27 +85,87 @@ sub config_to_json_tpl {
 sub combine_fragments {
   my $in = shift;
   my @out;
-  my @frags;
+  my $curchunk = 0;
+  my $append = 0;
   for my $chunk ( @$in ) {
     my $type = $chunk->[ 0 ];
-    if( $type ) { # we have hit a non basic chunk, just dump everything to the output stream :(
-      if( @frags ) { push( @out, [ 0, join( '', @frags ) ] ); @frags = (); }
-      push( @out, $chunk );
+    if( !$type && !$chunk->[ 1 ] ) { next; }
+    
+    if( !$curchunk ) {
+      if( !$type ) {
+        if( html_complete( $chunk->[1] ) ) {
+          push( @out, $chunk );
+          next;
+        }
+        else {
+          $curchunk = [ 2, [ $chunk ] ];
+          $append = 1;
+          next;
+        }
+      }
+      else {
+        push( @out, $chunk );
+        next;
+      }
+    }
+    # we have a multi part chunk
+    my $parts = $curchunk->[1];
+    my $numparts = scalar @$parts;
+    my $lastpart = $parts->[ $numparts - 1 ];
+    my $lasttype = $lastpart->[0];
+    
+    if( !$lasttype ) { # currently working on an html chunk
+      if( !$type ) { # got an html chunk
+        if( $append ) {
+          $lastpart->[ 1 ] .= $chunk->[ 1 ];
+        }
+        else {
+          push( @$parts, $chunk );
+        }
+      }
+      else {
+        push( @$parts, $chunk );
+      }
+    }
+    else { # currently have non html chunk
+      push( @$parts, $chunk );
       next;
     }
-    my $val = $chunk->[ 1 ];
-    push( @frags, $val );
-    my ( $ob, $html ) = HTML::Bare->new( text => join( '', @frags ) . $val );
-    my $res = $ob->get_parse_position();
-    if( $res->{'depth'} ) { # we still have a fragment
+    
+    my @htmlchunks;
+    for( my $i=0;$i<$numparts;$i++ ) {
+      my $part = $parts->[ $i ];
+      if( !$part->[0] ) { push( @htmlchunks, $part ); }
     }
-    else { # fragment is finished, dump the fragments into the output
-      push( @out, [ 0, join( '', @frags ) ] ); 
-      @frags = ();
+    if( chunks_complete( \@htmlchunks ) ) {
+      if( $numparts == 1 ) {
+        push( @out, $curchunk->[1][0] );
+      }
+      else {
+        push( @out, $curchunk );
+      }
+      $curchunk = 0;
     }
   }
-  if( @frags ) { push( @out, [ 0, join( '', @frags ) ] ); @frags = (); }
   return \@out;
+}
+
+sub chunks_complete {
+  my $chunks = shift;
+  my $html = '';
+  for my $chunk ( @$chunks ) {
+    $html .= $chunk->[1];
+  }
+  return html_complete( $html );
+}
+
+sub html_complete {
+  my $txt = shift;
+  return 1 if( !$txt );
+  #print STDERR "HTML: $html\n";
+  my ( $ob, $html ) = HTML::Bare->new( text => $txt);
+  my $res = $ob->get_parse_position();
+  return !$res->{'depth'};
 }
 
 sub read_data {
