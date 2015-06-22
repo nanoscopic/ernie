@@ -77,7 +77,9 @@ sub config_to_json_tpl {
     push( @$pagearr, $chunks );
   }
   
-  open( my $confj, ">../configuration/config_$report_type.json" );
+  my $file = "../configuration/config_$report_type.json";
+  unlink $file;
+  open( my $confj, ">$file" ) or die "Cannot open $file";
   print $confj JSON::XS->new->utf8->pretty(1)->encode( $all );
   close $confj;
 }
@@ -129,20 +131,46 @@ sub combine_fragments {
     }
     else { # currently have non html chunk
       push( @$parts, $chunk );
-      next;
     }
     
     my @htmlchunks;
+    $numparts = scalar @$parts;
     for( my $i=0;$i<$numparts;$i++ ) {
       my $part = $parts->[ $i ];
       if( !$part->[0] ) { push( @htmlchunks, $part ); }
     }
-    if( chunks_complete( \@htmlchunks ) ) {
+    #print STDERR Dumper( \@htmlchunks );
+    my $res = chunks_complete( \@htmlchunks );
+    #print STDERR Dumper( $res );
+    if( $res->{'complete'} ) {
       if( $numparts == 1 ) {
         push( @out, $curchunk->[1][0] );
+        $curchunk = 0;
+        next;
       }
       else {
-        push( @out, $curchunk );
+        if( $res->{'more'} ) {
+          #my $last = pop @htmlchunks;
+          #push( @htmlchunks, [ 0, $res->{'parsed'} ] );
+          my $last = pop @{$curchunk->[1]};
+          push( @{$curchunk->[1]}, [ 0, $res->{'parsed'} ] );
+          push( @out, $curchunk );
+          
+          #print STDERR Dumper( $curchunk );
+          if( html_complete( $res->{'more'} ) ) {
+            push( @out, [ 0, $res->{'more'} ] );
+            $curchunk = 0;
+            next;
+          }
+          else {
+            $curchunk = [ 2, [ [ 0, $res->{'more'} ] ] ];
+            $append = 1;
+            next;
+          }
+        }
+        else {
+          push( @out, $curchunk );
+        }
       }
       $curchunk = 0;
     }
@@ -152,11 +180,33 @@ sub combine_fragments {
 
 sub chunks_complete {
   my $chunks = shift;
-  my $html = '';
-  for my $chunk ( @$chunks ) {
-    $html .= $chunk->[1];
+  my $txt = '';
+  my $len = scalar @$chunks;
+  if( $len == 1 ) {
+    return {
+      complete => html_complete( $chunks->[0][1] )
+    }
   }
-  return html_complete( $html );
+  $len--;
+  #for my $chunk ( @$chunks ) {
+  for( my $i=0;$i<$len;$i++ ) {
+    my $chunk = $chunks->[$i];
+    $txt .= $chunk->[1];
+  }
+  my $lasthtml = $chunks->[ $len ][1];
+  my ( $ob, $html ) = HTML::Bare->new( text => $txt );
+  $ob->stop_outside();
+  $ob->read_more( text => $lasthtml );
+  my $len = length( $lasthtml );
+  my $res = $ob->get_parse_position();
+  if( $res->{'depth'} ) { return { complete => 0 }; }
+  my $pos = $res->{'position'};
+  if( $len == $pos ) {
+    return { complete => 1, more => 0 };
+  }
+  my $left = substr( $lasthtml, $pos );
+  my $parsed = substr( $lasthtml, 0, $pos );
+  return { complete => 1, more => $left, parsed => $parsed };
 }
 
 sub html_complete {
