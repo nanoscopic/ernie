@@ -9,6 +9,7 @@ use JSON::XS;
 use lib '../../HTML-Bare/blib/lib';
 use lib '../../HTML-Bare/blib/arch';
 use HTML::Bare qw//;
+use Carp;
 
 my $report_type = $ARGV[0];
 my $report_run_id = $ARGV[1] || 97;
@@ -60,7 +61,13 @@ sub config_to_json_tpl {
   for my $key ( keys %map ) {
     #print "Key: $key\n";
     my $dest = $map{ $key };
-    $mapped{ $key } = $alldata->{ $dest }{'row'};
+    my $node = $alldata->{ $dest };
+    if( ref( $node ) && $node->{'row'} ) {
+      $mapped{ $key } = $node->{'row'};
+    }
+    else {
+      $mapped{ $key } = [];
+    }
   }
   #print Dumper( $mapped{ 'survey_info' } );
   #exit;
@@ -72,10 +79,13 @@ sub config_to_json_tpl {
   my $all = { pages => $pagearr };
   for my $page ( @$pages ) {
     my $tpl = xval( $page );
+    #print "Running page: " . substr( $tpl, 0, 50 ) . "\n\n";
     my $chunks = tpl_to_chunks( $tpl, $ctx, 'TPL' );
     $chunks = combine_fragments( $chunks );
     push( @$pagearr, $chunks );
   }
+  
+  #print "Pages have been run\n";
   
   my $file = "../configuration/config_$report_type.json";
   unlink $file;
@@ -197,11 +207,11 @@ sub chunks_complete {
   my ( $ob, $html ) = HTML::Bare->new( text => $txt );
   $ob->stop_outside();
   $ob->read_more( text => $lasthtml );
-  my $len = length( $lasthtml );
+  my $len1 = length( $lasthtml );
   my $res = $ob->get_parse_position();
   if( $res->{'depth'} ) { return { complete => 0 }; }
   my $pos = $res->{'position'};
-  if( $len == $pos ) {
+  if( $len1 == $pos ) {
     return { complete => 1, more => 0 };
   }
   my $left = substr( $lasthtml, $pos );
@@ -228,6 +238,9 @@ sub read_data {
 
 sub get_data {
   my ( $name ) = @_;
+  if( !$alldata->{ $name } ) {
+    confess "Cannot get data for $name\n";
+  }
   return $alldata->{ $name };
 }
 
@@ -265,6 +278,10 @@ sub run_table {
   #print Dumper( \%map );
   my $odataname = xval $table->{'ds'};
   my $dataname = $map{ $odataname };
+  if( !$dataname ) {
+    print STDERR "No mapping for data '$odataname'\n";
+    return '';
+  }
   
   #print "Fetching data $dataname\n";
   my $data = get_data( $dataname );
@@ -438,6 +455,7 @@ sub run_type {
       push( $ogroups, $gp );
       
       my $gprows = group_data( $group, $rows );
+      
       push( @$group_stack, {
         name => $gp_name, # name of the group
         group => $table, # xml configuration of the group
@@ -450,6 +468,8 @@ sub run_type {
       my @gpkeys = keys %$gprows;
       my @allxys;
       for my $key ( @gpkeys ) {
+        #print "Group key: $key\n";
+        
         my $gpoutput = {};
         push( @$gpsets, $gpoutput );
         
@@ -473,6 +493,8 @@ sub run_type {
         $gp->{'xys'} = \@allxys;
       }
       
+      #print Dumper( $gpsets );
+      
       if( @$gpsets && $gpsets->[0]{'sort'} ) {
         my @sorted;
         my $dir = $gpsets->[0]{'sortdir'};
@@ -490,8 +512,13 @@ sub run_type {
         
         #print STDERR Dumper( $gpsets );
         
-        if( $dir eq 'asc' ) { @sorted = sort { $a->{'sort'} <=> $b->{'sort'} } @$gpsets; }
+        if( !$dir || $dir=='1' || $dir eq 'asc' ) { @sorted = sort { $a->{'sort'} <=> $b->{'sort'} } @$gpsets; }
         elsif( $dir eq 'desc' ) { @sorted = sort { $b->{'sort'} <=> $a->{'sort'} } @$gpsets; }
+        else {
+          print "Undefined sort dir $dir\n";
+        }
+        
+        #print STDERR Dumper( \@sorted );
         
         if( $gp->{'xys'} ) {
           my @sxys = ();
@@ -551,6 +578,7 @@ sub run_type {
       my @newdet;
       my @newxys;
       for my $i ( @s2 ) {
+        next if( ! defined $i );
         push( @newdet, $output->{'detail'}[ $i ] );
         push( @newxys, $output->{'xys'}[ $i ] );
       }
