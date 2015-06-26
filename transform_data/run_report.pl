@@ -499,6 +499,7 @@ sub run_type {
         my @sorted;
         my $dir = $gpsets->[0]{'sortdir'};
         
+        # set the 'pi' value to be an original 1 to n order
         my @cleansets;
         my $j = 0;
         for( my $i=0;$i<scalar @$gpsets; $i++ ) {
@@ -512,7 +513,7 @@ sub run_type {
         
         #print STDERR Dumper( $gpsets );
         
-        if( !$dir || $dir=='1' || $dir eq 'asc' ) { @sorted = sort { $a->{'sort'} <=> $b->{'sort'} } @$gpsets; }
+        if( !$dir || $dir eq '1' || $dir eq 'asc' ) { @sorted = sort { $a->{'sort'} <=> $b->{'sort'} } @$gpsets; }
         elsif( $dir eq 'desc' ) { @sorted = sort { $b->{'sort'} <=> $a->{'sort'} } @$gpsets; }
         else {
           print "Undefined sort dir $dir\n";
@@ -539,6 +540,7 @@ sub run_type {
           my $numxys = scalar( @$xys );
           #print STDERR "numgpsets: $numgpsets, numxys: $numxys\n";
           
+          # Use the original 'pi' 1 to n values to sort xy values the same as sorted items
           for( my $i=0;$i<scalar @sorted; $i++ ) {
             my $item = $sorted[ $i ];
             my $n = $xys->[ $item->{'pi'} ];
@@ -565,23 +567,45 @@ sub run_type {
     }
   }
   
+  
   if( !$grouped ) {
-    if( $headers->[0]{'sort'} ) {
-      #$print STDERR Dumper( $output );
+    #if( $headers->[0]{'sort'} ) {
+    if( $output->{'sort'} && @{$output->{'sort'}} ) {
+      #print STDERR Dumper( $output );
       my $sort = $output->{'sort'};
-      my @s2;
+      
+      my $dir = $output->{'sortdir'};
+      
+      my @fakeitems;
       for( my $i=0;$i<scalar @$sort;$i++ ) {
-        my $s = $sort->[ $i ];
-        $s2[ $s - 1 ] = $i;
+        push( @fakeitems, { sort => $sort->[ $i ], pi => $i } );
       }
-      my $sortdir = $output->{'sortdir'};
+      
+      if( !$dir || $dir eq '1' || $dir eq 'asc' ) {
+        @fakeitems = sort {
+          return 0 if( $a->{'sort'} eq '' || $b->{'sort'} eq '' );
+          $a->{'sort'} <=> $b->{'sort'}
+        } @fakeitems;
+      }
+      elsif( $dir eq 'desc' ) { @fakeitems = sort { $b->{'sort'} <=> $a->{'sort'} } @fakeitems; }
+      else {
+        print "Undefined sort dir $dir\n";
+      }
+      
       my @newdet;
       my @newxys;
-      for my $i ( @s2 ) {
-        next if( ! defined $i );
-        push( @newdet, $output->{'detail'}[ $i ] );
-        push( @newxys, $output->{'xys'}[ $i ] );
+      my @s2;
+      for( my $i=0;$i<scalar @$sort;$i++ ) {
+        #my $s = $sort->[ $i ];
+        my $s = $fakeitems[ $i ];
+        my $pi = $s->{'pi'};
+        my $det = $output->{'detail'}[ $pi ];
+        
+        push( @newdet, $det ) if( $det );
+        my $xy = $output->{'xys'}[ $pi ];
+        push( @newxys, $xy) if( defined $xy && $xy ne '' );
       }
+      
       $output->{'detail'} = \@newdet;
       $output->{'xys'} = \@newxys;
     }
@@ -607,20 +631,6 @@ sub run_raw_type {
     $TPL::ctx = $ctx;
     
     for my $header ( @$headers ) {
-      if( $header->{'cond'} ) {
-        my $cond = xval $header->{'cond'};
-        if( $cond =~ m/\{/ ) {
-          $cond = fill_in_string( $cond, $ctx, 'TPL' );
-          if( ! defined $cond ) {
-            print "2c: ". $Text::Template::ERROR;
-            exit;
-          }
-        }
-        else {
-          $cond = $row1->{ $cond };
-        }
-        next if( !$cond );
-      }
       if( $header->{'set'} ) { # arbitrary expression to precompute before running through columns
         my $sets = forcearray( $header->{'set'} );
         for my $set ( @$sets ) {
@@ -637,16 +647,55 @@ sub run_raw_type {
           $byname->{ $name } = $val;
         }
       }
+      if( $header->{'cond'} ) {
+        my $cond = xval $header->{'cond'};
+        if( $cond =~ m/\{/ ) {
+          $cond = fill_in_string( $cond, $ctx, 'TPL' );
+          if( ! defined $cond ) {
+            print "2c: ". $Text::Template::ERROR;
+            exit;
+          }
+        }
+        else {
+          $cond = $row1->{ $cond };
+        }
+        next if( !$cond );
+      }
+      
+      my $xy = 0;
+      my $sort = '';
+      my $sort_dir = 'asc';
+      
+      if( $header->{'raw'} ) {
+        my $raws = forcearray( $header->{'raw'} );
+        for my $raw ( @$raws ) {
+          my $val = xval( $raw ) || '';
+          if( $val =~ m/\{/ ) {
+            $val = fill_in_string( $val, $ctx, 'TPL' );
+            if( ! defined $val ) {
+              print "1r: ". $Text::Template::ERROR . "--" . xval( $raw ) . "--";
+              exit;
+            }
+          }
+          
+          if( $raw->{'c'} ) {
+            $xy ||= {};
+            process_c( $xy, xval( $raw->{'c'} ), $val );
+          }
+          if( $raw->{'sort'} ) {
+            $sort = $val;
+            $sort_dir = xval( $raw->{'sort'} ) || 'desc';
+          }
+        }
+      }
+      
       my $ths;
       my $th_td;
       if( $header->{'th'} ) { $ths = forcearray( $header->{'th'} ); $th_td = 'th'; }
       if( $header->{'td'} ) { $ths = forcearray( $header->{'td'} ); $th_td = 'td'; }
       #$out .= "  <tr>\n";
       my $out = '';
-      my $sort = '';
-      my $sort_dir = 'asc';
       
-      my $xy = 0;
       for my $th ( @$ths ) {
         my $val = xval( $th ) || '';
         if( $val =~ m/\{/ ) {
@@ -657,18 +706,9 @@ sub run_raw_type {
           }
         }
         
-        if( $th->{'x'} ) {
+        if( $th->{'c'} ) {
           $xy ||= {};
-          $xy->{'x'} = $val;
-        }
-        if( $th->{'y'} ) {
-          $xy ||= {};
-          if( defined $xy->{'y'} ) {
-            $xy->{'y'} = [ $xy->{'y'}, $val ];
-          }
-          else {
-            $xy->{'y'} = $val;
-          }
+          process_c( $xy, xval( $th->{'c'} ), $val );
         }
         if( $th->{'name'} ) {
           $byname->{ xval( $th->{'name'} ) } = $val;
@@ -725,6 +765,17 @@ sub run_raw_type {
   }
   
   #$output->{ $type_name } = $out;
+}
+
+sub process_c {
+  my ( $xy, $c, $val ) = @_;
+  
+  if( $c eq 'y' ) {
+    if( defined $xy->{'y'} ) {  $xy->{'y'} = [ $xy->{'y'}, $val ]; }
+    else                     {  $xy->{'y'} =               $val;   }
+    return;
+  }
+  $xy->{ $c } = $val;
 }
 
 sub add_array_item {
