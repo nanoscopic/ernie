@@ -3367,7 +3367,7 @@ var Chartist = {
       if(options.showLabel) {
         // Position at the labelRadius distance from center and between start and end angle
         var labelPosition = Chartist.polarToCartesian(center.x, center.y, labelRadius, startAngle + (endAngle - startAngle) / 2),
-          interpolatedValue = options.labelInterpolationFnc(this.data.labels ? this.data.labels[i] : dataArray[i], i);
+          interpolatedValue = options.labelInterpolationFnc(this.data.labels ? this.data.labels[i] : dataArray[i], i, this.data, totalDataSum);
 
         var labelElement = seriesGroups[i].elem('text', {
           dx: labelPosition.x,
