@@ -139,7 +139,7 @@ function go2( response ) {
   for( var tb_name in tables ) {
     if( tb_name == 'data' ) continue;
     var table = tables[ tb_name ];
-    var tb = add_table();
+    var tb = add_table( tb_name );
     /*var tr = _newtr(2);
     _append( tb.tbody, tr.tr );
     _append( tr.td1, _newtext('test') );
@@ -154,9 +154,10 @@ function go2( response ) {
   //_append( sp, _newbr() );
 }
 
-function add_table() {
+function add_table( tb_name ) {
   var tb = _newtable();
   var sp = _getel('space');
+  _append( sp, _newtext( tb_name ), _newbr() );
   _append( sp, tb.table );
   _append( sp, _newbr() );
   tb.table.border = 1;
