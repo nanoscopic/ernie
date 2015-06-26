@@ -6,6 +6,7 @@
   <script src='ajax.js'></script>
   <script src="../../PageSpanner/PageSpanner.js"></script>
   <script src="../../DomCascade/protocut/dom-cascade.js"></script>
+  <script src="page_creation.js"></script>
   <script>
   Function.prototype.bind = Function.prototype.bind || function (thisp) {
     var fn = this;
@@ -26,47 +27,7 @@
     eval( "config = " + response.transport.responseText );
     new Ajax( "out.json", { onComplete: go3 } );
   }
-  function make_page( box ) {
-    var cascade = new DomCascade();
-    box.style.position = 'relative';
-    var res = cascade.append( box, [
-      {
-        name: 'table',
-        style: {
-          position: 'absolute',
-          top: '0px',
-          height: '60px',
-          background: 'blue',
-          width: '100%'
-        },
-        sub: [
-          {
-            name: 'tr',
-            sub: [
-              {
-                name: 'td',
-                sub: { name: 'text', text: 'a' }
-              },
-              {
-                name: 'td',
-                sub: { name: 'text', text: 'b' }
-              }
-            ]
-          },
-        ]
-      },
-      {
-        name: 'div',
-        ref: 'inside',
-        style: {
-          position: 'absolute',
-          top: '60px',
-          bottom: '10px'
-        }
-      }
-    ] );
-    return res.refs.inside;
-  }
+  
   function go3( response ) {
     var out;
     eval( "out = " + response.transport.responseText );
@@ -162,6 +123,10 @@
     /*height: 1085px;*//* 1090 */
     /*min-height: 100%;*/
     min-height: 11in !important;
+  }
+  
+  .inside {
+    padding: 10px;
   }
 
   
