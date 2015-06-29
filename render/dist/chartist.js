@@ -3295,7 +3295,9 @@ var Chartist = {
     // initialize series groups
     for (var i = 0; i < this.data.series.length; i++) {
       seriesGroups[i] = this.svg.elem('g', null, null, true);
-
+      
+      var more = this.data.more[i];
+      
       // If the series is an object and contains a name we add a custom attribute
       if(this.data.series[i].name) {
         seriesGroups[i].attr({
@@ -3360,7 +3362,9 @@ var Chartist = {
         center: center,
         radius: radius,
         startAngle: startAngle,
-        endAngle: endAngle
+        endAngle: endAngle,
+        data: this.data,
+        more: more
       });
 
       // If we need to show labels we need to add the label for this slice now
