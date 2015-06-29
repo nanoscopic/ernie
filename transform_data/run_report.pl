@@ -717,6 +717,9 @@ sub run_raw_type {
         if( $th->{'colspan'} ) {
           $cs = " colspan=\"" . xval( $th->{'colspan'} ) . "\"";
         }
+        if( $th->{'width'} ) {
+          $cs = " width=\"" . xval( $th->{'width'} ) . "\"";
+        }
         $out .= "    <$th_td$cs>$val</$th_td>\n";
         if( $th->{'sort'} ) {
           $sort = $val;
@@ -1058,4 +1061,29 @@ sub table {
 sub chart {
   my $cname = shift;
   return "$cname";
+}
+
+sub std_color {
+  my $i = shift;
+  my $colors = [
+      [128,166,212],
+      [253,133,175],
+      [255,156,90],
+      [101,198,124],
+      [90,204,194],
+      [84,199,239],
+      [255,194,103],
+      [255,128,129]
+  ];
+  my $num = scalar @$colors;
+  if( $i >= $num ) { return 'rgb(192,192,192)'; }
+  
+  my $color = $colors->[ $i ];
+  return 'rgb('.$color->[0].','.$color->[1].','.$color->[2].')';
+}
+
+sub color_block {
+  my $i = shift;
+  my $color = std_color( $i );
+  return "<div style='width: 20px; height: 20px; background: $color'>&nbsp;</div>";
 }
