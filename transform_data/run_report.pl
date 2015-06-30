@@ -21,8 +21,8 @@ my %map;
 my ( $ob1, $conf ) = XML::Bare->new( file => "../configuration/config_$report_type.xml" );
 $conf = $conf->{'xml'};
 
-transform_data();
-config_to_json_tpl();
+my $mapped_data = transform_data();
+config_to_json_tpl( $mapped_data );
 
 sub transform_data {
   #my ( $ob1, $conf ) = XML::Bare->new( file => 'simple_config.xml' );
@@ -38,6 +38,9 @@ sub transform_data {
   
   my $section = "all";
   
+  sources_to_maps(); # creates %map and %vmap
+  my $mapped_data = map_to_mapped();
+  
   #for my $table ( @$tables ) {
   for my $tb_name ( keys %$tables ) {
     if( $section eq $tb_name ) {}
@@ -48,15 +51,55 @@ sub transform_data {
     #my $tb_name = xval $table->{'name'};
     $table_outputs->{ $tb_name } = $tb_out;
   }
+  
+  if( $conf->{'json'} ) {
+    my $json_tpl = XML::Bare::Object::simplify( $conf->{'json'} );
+    my $ctx = { data => $mapped_data, report_id => $report_run_id };
+    $TPL::ctx = $ctx;
+    recurse_fill( $json_tpl, $ctx );
+    $output->{'json'} = $json_tpl;
+  }
+  
   open( OUT, ">../data/out_${report_type}_$report_run_id.json" );
   print OUT JSON::XS->new->utf8->pretty(1)->encode( $output );
   close( OUT );
   #print Dumper( $output );
+  
+  return $mapped_data;
 }
 
-sub config_to_json_tpl {
-  my $pages = forcearray( $conf->{'page'} );
+sub recurse_fill {
+  my ( $node, $ctx ) = @_;
   
+  #print STDERR Dumper( $node );
+  
+  if( !ref( $node ) ) {
+    my $val = $node;
+    if( $val =~ m/\{/ ) {
+      my $a = fill_in_string( $val, $ctx, 'TPL' );
+      if( ! defined $a ) {
+        print "rf: ". $Text::Template::ERROR . "--" . $val . "--";
+        exit;
+      }
+      $val = $a;
+    }
+    return $val;
+  }
+  
+  my $ref = ref( $node );
+  if( $ref eq 'HASH' ) {
+    for my $key ( keys %$node ) {
+      my $sub = $node->{ $key };
+      my $val = recurse_fill( $sub, $ctx );
+      $node->{ $key } = $val;
+    }
+    return $node;
+  }
+  die "error";
+}
+
+# Use the map of named tables ( %map ) to generate a hash '%mapped' from names to datasets
+sub map_to_mapped {
   my %mapped;
   for my $key ( keys %map ) {
     #print "Key: $key\n";
@@ -69,10 +112,18 @@ sub config_to_json_tpl {
       $mapped{ $key } = [];
     }
   }
+  return \%mapped;
+}
+
+sub config_to_json_tpl {
+  my ( $mapped_data ) = @_;
+  
+  my $pages = forcearray( $conf->{'page'} );
+  
   #print Dumper( $mapped{ 'survey_info' } );
   #exit;
     
-  my $ctx = { data => \%mapped, report_id => $report_run_id };
+  my $ctx = { data => $mapped_data, report_id => $report_run_id };
   $TPL::ctx = $ctx;
   
   my $pagearr = [];
@@ -255,11 +306,8 @@ sub read_table_confs {
   return \%hash;
 }
 
-sub run_table {
-  #my ( $tb_name ) = @_;
-  #my $table = $tables->{ $tb_name };
-  my $table = shift;
-  
+# reads datasources from configuration and created %map and %vmap
+sub sources_to_maps {
   my $sources_node = $conf->{'datasources'};
   my $sources = forcearray( $sources_node->{'func'} );
   
@@ -275,6 +323,13 @@ sub run_table {
       }
     }
   }
+}
+
+sub run_table {
+  #my ( $tb_name ) = @_;
+  #my $table = $tables->{ $tb_name };
+  my $table = shift;
+  
   #print Dumper( \%map );
   my $odataname = xval $table->{'ds'};
   my $dataname = $map{ $odataname };
