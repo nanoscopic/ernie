@@ -34,17 +34,19 @@
     var spanner = new PageSpanner( {
       tables: out.tables,
       page_tpl_generator: make_page
-    } );
+    }, out );
     var pages = config.pages;
     for( var i=0;i<pages.length;i++ ) {
       var page = pages[i];
-      spanner.add_items( page );
+      var last_page = ( i == pages.length-1 ) ? 1 : 0;
+      spanner.add_items( page, last_page );
     }
     spanner.fillToc();
   }
   </script>
   <style>
   @import url('dist/chartist.min.css');
+  @import url('toc.css');
   .ct-chart-pie .ct-label {
     fill: rgba(255,255,255,1) !important;
   }
