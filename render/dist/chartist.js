@@ -687,7 +687,7 @@ var Chartist = {
     positionalData[axis.counterUnits.pos] = labelOffset[axis.counterUnits.pos];
     positionalData[axis.units.len] = projectedValue.len;
     positionalData[axis.counterUnits.len] = axisOffset;
-
+    
     if(useForeignObject) {
       var content = '<span class="' + classes.join(' ') + '">' + labels[index] + '</span>';
       labelElement = group.foreignObject(content, Chartist.extend({
@@ -745,6 +745,9 @@ var Chartist = {
         ], useForeignObject, eventEmitter);
       }
     });
+    
+    if( axisOptions.label )
+      Chartist.createAxisLabel( axis, axisOptions.offset, axis.labelOffset, labelGroup, eventEmitter, axisOptions, axis.units.pos.toUpperCase(), options );
   };
 
   /**

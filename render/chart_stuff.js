@@ -1,5 +1,5 @@
 
-function addLabel( eventEmitter, useForeignObject, positionalData, group, classes, axis, index, label ) {
+function addLabel( eventEmitter, useForeignObject, positionalData, group, classes, axis, index, label, type ) {
   var labelElement;
   if( useForeignObject ) {
     var content = '<span class="' + classes.join(' ') + '">' + label + '</span>';
@@ -14,7 +14,19 @@ function addLabel( eventEmitter, useForeignObject, positionalData, group, classe
     );
   } 
   else {
-    labelElement = group.elem('text', positionalData, classes.join(' ')).text( label );
+    if( type == 'Y' ) {
+      var x = positionalData.x;
+      var y = positionalData.y;
+      positionalData.transform = 'translate('+x+','+y+')rotate(90)translate('+(-x)+','+(-y)+')';
+      labelElement = group.elem('text', positionalData, classes.join(' ')+' vertical').text( label );
+      var node = labelElement._node;
+      //var x = node.x.baseVal[0].value;
+      //var y = node.y.baseVal[1].value;
+      //node.setAttribute('transform',  );
+    }
+    else {
+      labelElement = group.elem('text', positionalData, classes.join(' ')).text( label );
+    }
   }
   
   eventEmitter.emit('draw', Chartist.extend({
@@ -25,6 +37,42 @@ function addLabel( eventEmitter, useForeignObject, positionalData, group, classe
     element: labelElement,
     text: label
   }, positionalData));
+}
+function getTextWidth(text, font) {
+    // re-use canvas object for better performance
+    var canvas = getTextWidth.canvas || (getTextWidth.canvas = document.createElement("canvas"));
+    var context = canvas.getContext("2d");
+    //context.font = font;
+    var metrics = context.measureText(text);
+    return metrics.width;
+};
+Chartist.createAxisLabel = function( axis, axisOffset, labelOffset, group, eventEmitter, options, type, optionsg ) {
+  var projectedValue = {
+    pos: 0,
+    len: 0
+  };
+  var positionalData = {};
+  positionalData[axis.units.pos] = projectedValue.pos + labelOffset[axis.units.pos];
+  positionalData[axis.counterUnits.pos] = labelOffset[axis.counterUnits.pos];
+  positionalData[axis.units.len] = projectedValue.len + 50; // + 50 allows a label to go past it's column
+  positionalData[axis.counterUnits.len] = axisOffset;
+  
+  var label = options.label;
+  var textWidth = getTextWidth( label );
+  
+  if( type == 'Y' ) {
+    positionalData[axis.units.pos] += ( optionsg.height/2) - textWidth/2; // move down so it's visible on the left
+  }
+  else {
+    positionalData[axis.units.pos] += ( optionsg.width /2) - textWidth/2 ; // move to the right
+    positionalData[axis.counterUnits.pos] += 40; // move down under other labels
+  }
+  
+  var useForeignObject = 0;
+  var classes = [];
+  
+  var index = 0;
+  addLabel( eventEmitter, useForeignObject, positionalData, group, classes, axis, index, label, type );
 }
 Chartist.createLabel = function(projectedValue, index, labels, axis, axisOffset, labelOffset, group, classes, useForeignObject, eventEmitter) {
   var positionalData = {};
@@ -37,13 +85,13 @@ Chartist.createLabel = function(projectedValue, index, labels, axis, axisOffset,
   
   if( label.indexOf && label.indexOf("\n") != -1 ) {
     var lines = label.split("\n");
-    for( var i  in lines ) {
+    for( var i in lines ) {
       var line = lines[i];
-      addLabel( eventEmitter, useForeignObject, positionalData, group, classes, axis, index, line );
+      addLabel( eventEmitter, useForeignObject, positionalData, group, classes, axis, index, line, 'X' );
       positionalData[ axis.counterUnits.pos ] += 17;
     }
   }
-  else addLabel( eventEmitter, useForeignObject, positionalData, group, classes, axis, index, label );
+  else addLabel( eventEmitter, useForeignObject, positionalData, group, classes, axis, index, label, 'X' );
 };
 
 
