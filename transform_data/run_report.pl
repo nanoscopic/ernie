@@ -568,7 +568,11 @@ sub run_type {
         
         #print STDERR Dumper( $gpsets );
         
-        if( !$dir || $dir eq '1' || $dir eq 'asc' ) { @sorted = sort { $a->{'sort'} <=> $b->{'sort'} } @$gpsets; }
+        if( !$dir || $dir eq '1' || $dir eq 'asc' ) {
+          @sorted = sort {
+            $a->{'sort'} <=> $b->{'sort'}
+          } @$gpsets;
+        }
         elsif( $dir eq 'desc' ) { @sorted = sort { $b->{'sort'} <=> $a->{'sort'} } @$gpsets; }
         else {
           print "Undefined sort dir $dir\n";
@@ -622,7 +626,6 @@ sub run_type {
     }
   }
   
-  
   if( !$grouped ) {
     #if( $headers->[0]{'sort'} ) {
     if( $output->{'sort'} && @{$output->{'sort'}} ) {
@@ -657,6 +660,7 @@ sub run_type {
         my $det = $output->{'detail'}[ $pi ];
         
         push( @newdet, $det ) if( $det );
+        
         my $xy = $output->{'xys'}[ $pi ];
         push( @newxys, $xy) if( defined $xy && $xy ne '' );
       }
@@ -664,6 +668,38 @@ sub run_type {
       $output->{'detail'} = \@newdet;
       $output->{'xys'} = \@newxys;
     }
+  }
+  
+  my $detail = $output->{'detail'};
+  if( $detail && @$detail ) {
+    my @det2;
+    
+    #print STDERR Dumper( $detail );
+    for my $arr ( @$detail ) {
+      next if( !$arr );
+      if( !ref( $arr ) ) {
+        push( @det2, $arr );
+        next;
+      }
+      
+      my $one = '';
+      for my $item ( @$arr ) {
+        next if( !$item );
+        my $type = $item->{'type'};
+        if( $type eq 'text' ) {
+          my $val = $item->{'text'};
+          if( defined $val ) {
+            #push( @det2, $val );
+            $one .= $val;
+          }
+        }
+        if( $type eq 'delayed' ) {
+          
+        }
+      }
+      push( @det2, $one );
+    }
+    $output->{'detail'} = \@det2;
   }
 }
 
@@ -749,7 +785,10 @@ sub run_raw_type {
       if( $header->{'th'} ) { $ths = forcearray( $header->{'th'} ); $th_td = 'th'; }
       if( $header->{'td'} ) { $ths = forcearray( $header->{'td'} ); $th_td = 'td'; }
       #$out .= "  <tr>\n";
-      my $out = '';
+      my $out = "";
+      if( $type_name eq 'detail' ) {
+        $out = [];
+      }
       
       for my $th ( @$ths ) {
         my $val = xval( $th ) || '';
@@ -775,7 +814,12 @@ sub run_raw_type {
         if( $th->{'width'} ) {
           $cs = " width=\"" . xval( $th->{'width'} ) . "\"";
         }
-        $out .= "    <$th_td$cs>$val</$th_td>\n";
+        if( $type_name eq 'detail' ) {
+          push( $out, { type => 'text', text => "    <$th_td$cs>$val</$th_td>\n" } );
+        }
+        else {
+          $out .= "    <$th_td$cs>$val</$th_td>\n";
+        }
         if( $th->{'sort'} ) {
           $sort = $val;
           $sort_dir = xval( $th->{'sort'} ) || 'desc';
@@ -811,7 +855,14 @@ sub run_raw_type {
         $sortdir2 = $sort_dir;
       }
       #$out .= "  </tr>\n";
-      add_array_item( $output, $type_name, $out );
+      if( $type_name eq 'detail' ) {
+        if( @$out ) {
+          add_array_item( $output, $type_name, $out );
+        }
+      }
+      else {
+        add_array_item( $output, $type_name, $out );
+      }
     }
   }
   if( !$grouped ) {
