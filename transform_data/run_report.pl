@@ -481,6 +481,9 @@ sub group_data {
 sub run_type {
   my ( $output, $type_name, $group_stack, $table, $rows, $byname, $grouped ) = @_;
   
+  #my $tablen = xval( $table->{'name'} );
+  #print STDERR "table: $tablen, type: $type_name\n";
+  
   my $headers = forcearray( $table->{$type_name} );
   
   run_raw_type( $output, $type_name, $group_stack, $headers, $rows, $byname, $grouped );
@@ -548,85 +551,108 @@ sub run_type {
         $gp->{'xys'} = \@allxys;
       }
       
-      #print Dumper( $gpsets );
+      #print STDERR Dumper( $gpsets );
       
-      if( @$gpsets && $gpsets->[0]{'sort'} ) {
-        my @sorted;
-        my $dir = $gpsets->[0]{'sortdir'};
-        
-        # set the 'pi' value to be an original 1 to n order
-        my @cleansets;
-        my $j = 0;
-        for( my $i=0;$i<scalar @$gpsets; $i++ ) {
-          my $item = $gpsets->[ $i ];
-          next if( !$item || !%$item );
-          $item->{'pi'} = $j;
-          $j++;
-          push( @cleansets, $item );
+      if( @$gpsets ) {
+        if( $gpsets->[0]{'sort'} ) {
+          my @sorted;
+          my $dir = $gpsets->[0]{'sortdir'};
+          
+          # set the 'pi' value to be an original 1 to n order
+          my @cleansets;
+          my $j = 0;
+          for( my $i=0;$i<scalar @$gpsets; $i++ ) {
+            my $item = $gpsets->[ $i ];
+            next if( !$item || !%$item );
+            $item->{'pi'} = $j;
+            $j++;
+            push( @cleansets, $item );
+          }
+          @$gpsets = @cleansets;
+          
+          #print STDERR Dumper( $gpsets );
+          
+          if( !$dir || $dir eq '1' || $dir eq 'asc' ) {
+            @sorted = sort {
+              $a->{'sort'} <=> $b->{'sort'}
+            } @$gpsets;
+          }
+          elsif( $dir eq 'desc' ) { @sorted = sort { $b->{'sort'} <=> $a->{'sort'} } @$gpsets; }
+          else {
+            print "Undefined sort dir $dir\n";
+          }
+          
+          #print STDERR Dumper( \@sorted );
+          
+          if( $gp->{'xys'} ) {
+            my @sxys = ();
+            
+            my $xys = $gp->{'xys'};
+            
+            #print STDERR Dumper( $xys );
+            
+            my @cleanxys;
+            for( my $i=0;$i<scalar @$xys; $i++ ) {
+              my $xy = $xys->[ $i ];
+              next if( !$xy );
+              push( @cleanxys, $xy );
+            }
+            @$xys = @cleanxys;
+            
+            my $numgpsets = scalar( @$gpsets );
+            my $numxys = scalar( @$xys );
+            #print STDERR "numgpsets: $numgpsets, numxys: $numxys\n";
+            
+            # Use the original 'pi' 1 to n values to sort xy values the same as sorted items
+            for( my $i=0;$i<scalar @sorted; $i++ ) {
+              my $item = $sorted[ $i ];
+              my $n = $xys->[ $item->{'pi'} ];
+              #if( $n && ref( $n ) ne 'ARRAY' ) {
+                $n = fill_in_xy( $n );
+                push( @sxys, $n );
+                delete $item->{'pi'};
+              #}
+            }
+            
+            #print STDERR Dumper( \@sxys );
+            
+            $gp->{'xys'} = \@sxys;
+            #print STDERR Dumper( $gp->{'xys'} );
+          }
+          
+          $gp->{'sets'} = \@sorted;
+          for my $item ( @sorted ) {
+            delete $item->{'sort'};
+            delete $item->{'sortdir'};
+          }
+          
+          pop( @$group_stack );
         }
-        @$gpsets = @cleansets;
-        
-        #print STDERR Dumper( $gpsets );
-        
-        if( !$dir || $dir eq '1' || $dir eq 'asc' ) {
-          @sorted = sort {
-            $a->{'sort'} <=> $b->{'sort'}
-          } @$gpsets;
-        }
-        elsif( $dir eq 'desc' ) { @sorted = sort { $b->{'sort'} <=> $a->{'sort'} } @$gpsets; }
         else {
-          print "Undefined sort dir $dir\n";
-        }
-        
-        #print STDERR Dumper( \@sorted );
-        
-        if( $gp->{'xys'} ) {
-          my @sxys = ();
-          
-          my $xys = $gp->{'xys'};
-          
-          #print STDERR Dumper( $xys );
-          
-          my @cleanxys;
-          for( my $i=0;$i<scalar @$xys; $i++ ) {
-            my $xy = $xys->[ $i ];
-            next if( !$xy );
-            push( @cleanxys, $xy );
+          # We need to convert xy values from 'parts with types' to text, even when they aren't sorted
+          if( $gp->{'xys'} ) {
+            my @sxys = ();
+            
+            my $xys = $gp->{'xys'};
+            
+            
+            for( my $i=0;$i<scalar @$xys; $i++ ) {
+              my $xy = $xys->[ $i ];
+              next if( !$xy );
+              $xy = fill_in_xy( $xy );
+              push( @sxys, $xy );
+            }
+            
+            $gp->{'xys'} = \@sxys;
           }
-          @$xys = @cleanxys;
-          
-          my $numgpsets = scalar( @$gpsets );
-          my $numxys = scalar( @$xys );
-          #print STDERR "numgpsets: $numgpsets, numxys: $numxys\n";
-          
-          # Use the original 'pi' 1 to n values to sort xy values the same as sorted items
-          for( my $i=0;$i<scalar @sorted; $i++ ) {
-            my $item = $sorted[ $i ];
-            my $n = $xys->[ $item->{'pi'} ];
-            #if( $n && ref( $n ) ne 'ARRAY' ) {
-              push( @sxys, $n );
-              delete $item->{'pi'};
-            #}
-          }
-          
-          #print STDERR Dumper( \@sxys );
-          
-          $gp->{'xys'} = \@sxys;
-          #print STDERR Dumper( $gp->{'xys'} );
         }
         
-        $gp->{'sets'} = \@sorted;
-        for my $item ( @sorted ) {
-          delete $item->{'sort'};
-          delete $item->{'sortdir'};
-        }
+        
       }
-      
-      pop( @$group_stack );
     }
   }
   
-  if( !$grouped ) {
+  if( !$grouped && $type_name eq 'detail' ) {
     #if( $headers->[0]{'sort'} ) {
     if( $output->{'sort'} && @{$output->{'sort'}} ) {
       #print STDERR Dumper( $output );
@@ -661,8 +687,12 @@ sub run_type {
         
         push( @newdet, $det ) if( $det );
         
+        
         my $xy = $output->{'xys'}[ $pi ];
-        push( @newxys, $xy) if( defined $xy && $xy ne '' );
+        if( defined $xy ) {
+          $xy = fill_in_xy( $xy );
+          push( @newxys, $xy );
+        }
       }
       
       $output->{'detail'} = \@newdet;
@@ -694,13 +724,57 @@ sub run_type {
           }
         }
         if( $type eq 'delayed' ) {
-          
+          my $pre = $item->{'pre'};
+          my $post = $item->{'post'};
+          $one .= $pre;
+          $one .= fill_in_delayed( $item->{'object'}, { i => 0 } );
+          $one .= $post;
         }
       }
       push( @det2, $one );
     }
     $output->{'detail'} = \@det2;
   }
+}
+
+sub fill_in_xy {
+  my $xy = shift;
+  
+  #print STDERR Dumper( $xy );
+  my %xy2;
+  for my $key ( keys %$xy ) {
+    my $ob = $xy->{ $key };
+    my $out;
+    if( ref( $ob ) eq 'ARRAY' ) {
+      my @r;
+      for my $oneob ( @$ob ) {
+        push( @r, fill_xy_val( $oneob ) );
+      }
+      $out  = \@r;
+    }
+    else {
+      $out = fill_xy_val( $ob );
+    }
+    
+    $xy2{ $key } = $out;
+  }
+  
+  return \%xy2;
+}
+
+sub fill_xy_val {
+  my $ob = shift;
+  my $type = $ob->{'type'};
+  my $out;
+  if( $type eq 'text' ) {
+    $out = $ob->{'text'};
+  }
+  elsif( $type eq 'delayed' ) {
+    my $pre = $ob->{'pre'} || '';
+    my $post = $ob->{'post'} || '';
+    $out = $pre . fill_in_delayed( $ob->{'object'}, { i => 0 } ) . $post;
+  }
+  return $out;
 }
 
 sub run_raw_type {
@@ -792,17 +866,29 @@ sub run_raw_type {
       
       for my $th ( @$ths ) {
         my $val = xval( $th ) || '';
+        my $dval;
         if( $val =~ m/\{/ ) {
-          $val = fill_in_string( $val, $ctx, 'TPL' );
-          if( ! defined $val ) {
-            print "1: ". $Text::Template::ERROR . "--" . xval( $th ) . "--";
-            exit;
+          if( $th->{'delay'} ) {
+            $dval = create_delayed( $val, $ctx, 'TPL' );
+            $val = 'delayed';
+          }
+          else {
+            $val = fill_in_string( $val, $ctx, 'TPL' );
+            if( ! defined $val ) {
+              print "1: ". $Text::Template::ERROR . "--" . xval( $th ) . "--";
+              exit;
+            }
           }
         }
         
         if( $th->{'c'} ) {
           $xy ||= {};
-          process_c( $xy, xval( $th->{'c'} ), $val );
+          if( $th->{'delay'} ) {
+            process_c( $xy, xval( $th->{'c'} ), { type => 'delayed', object => $val } );
+          }
+          else {
+            process_c( $xy, xval( $th->{'c'} ), { type => 'text', text => $val } );
+          }
         }
         if( $th->{'name'} ) {
           $byname->{ xval( $th->{'name'} ) } = $val;
@@ -815,7 +901,12 @@ sub run_raw_type {
           $cs = " width=\"" . xval( $th->{'width'} ) . "\"";
         }
         if( $type_name eq 'detail' ) {
-          push( $out, { type => 'text', text => "    <$th_td$cs>$val</$th_td>\n" } );
+          if( $th->{'delay'} ) {
+            push( $out, { type => 'delayed', pre => "    <$th_td$cs>", post => "</$th_td>\n", object => $dval } );
+          }
+          else {
+            push( $out, { type => 'text', text => "    <$th_td$cs>$val</$th_td>\n" } );
+          }
         }
         else {
           $out .= "    <$th_td$cs>$val</$th_td>\n";
@@ -834,7 +925,7 @@ sub run_raw_type {
             exit;
           }
         }
-        #print STDERR "$sortt ";
+        #print STDERR "Sort: $sortt\n";
         $sort = $sortt;
         if( $header->{'sort'}{'dir'} ) {
           $sort_dir = xval $header->{'sort'}{'dir'};
