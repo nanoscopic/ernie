@@ -746,7 +746,7 @@ var Chartist = {
       }
     });
     
-    if( axisOptions.label )
+    if( axisOptions.label && Chartist.createAxisLabel )
       Chartist.createAxisLabel( axis, axisOptions.offset, axis.labelOffset, labelGroup, eventEmitter, axisOptions, axis.units.pos.toUpperCase(), options );
   };
 
@@ -3299,7 +3299,7 @@ var Chartist = {
     for (var i = 0; i < this.data.series.length; i++) {
       seriesGroups[i] = this.svg.elem('g', null, null, true);
       
-      var more = this.data.more[i];
+      var more = this.data.more ? this.data.more[i] : {};
       
       // If the series is an object and contains a name we add a custom attribute
       if(this.data.series[i].name) {
