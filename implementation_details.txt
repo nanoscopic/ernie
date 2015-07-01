@@ -1,0 +1,46 @@
+Ernie Reporting
+  Implementation Details
+------------------------
+
+Table of Contens:
+
+1. Features
+  1a. HTML Parsing
+  1b. Standard colors
+2. Gotchas
+  2a. Delayed cells
+3. Comparison with BIRT
+
+------------------------
+
+1. Features
+
+1a. HTML Parsing
+
+I order to keep a bunch of related content on a single page, you can simply surround that content with any html node ( such as a div ). The system will automatically parse your HTML, and group together such content, outputting it altogether on a single page. As a result of this, if you put tags around content that spans more than one page, it will break the rendering ( it breaks because more than a pageful of content is then output into a single page div ). Currently this is done on purpose. It is a feature, not a bug. :D
+
+1b. Standard Colors
+
+A standard set of colors are hardcoded into the system, to be used with the included customized charting library. This set of standard colors happens to be what was needed for the first use of this system. These colors are sort of rainbowy and pastelish. In my personal opinion, they look kind of gay. Really colors should not be hardcoded like this and these will be taken out at some point or alternate sets of colors will be included instead of just one set. At the very least, it should be possible to specify a custom set of colors in the configuration file rather than having them be hardcoded.
+
+2. Gotchas
+
+2a. Delayed Cells
+
+You may note that there is a 'delay' option for th/td cells. This option delays the execution of any template for that item until after sorting has been done. This is done in the code in a very convoluted fashion currently. It uses a whacky new feature of Template::Bare aptly named 'delayed templates'. The way that the delay is done, only a shallow copy of the current template variables are saved till later. As a result, you must store anything you want to save till later directly. To avoid having write write variables directly into the package; which I don't like, a hack has been added to Template::Bare 'delayed templates' to additionally save all variables within the 'byname' hash. Really I need to document and show an example of this being done, but suffice it to say you are going to need this feature to do certain types of things...
+
+3. Comparison with BIRT
+
+This reporting system was originally created in order to replace BIRT in a project. BIRT is a huge complex codebase. It does many useful things, but it is extremely slow. Also, in order to create reports you need to use Eclipse to do it. Eclipse is very buggy and performs terribly when loading large reports. Sometimes it will corrupt your configuration, and huge certain sections or portions of your report.
+
+Ernie attempts to duplicate the useful features of BIRT, without becoming horribly bloated and slow. Despite Ernie being implemented in Perl scripting instead of Java, Ernie is faster than BIRT by leaps and bounds. In initial application for large reports, Ernie is around 10 times faster by my tests. This allows Ernie to be a useful efficient tool in situations where BIRT is simply unacceptable due to it's poor performance.
+
+BIRT is also very limited when outputting to PDF. Many interesting things can be done if you only output to HTML and are willing to hack at tens of thousands of lines of Java code, but if you are outputting to PDF you are essentially stuck with the default feature set BIRT provides. The layout and styling of default BIRT leaves a lot to be desired. There are tons of options, but even after fiddling with them all your reports still will not be clean and concise.
+
+Ernie is designed to be small, clean, and straightforwards. Modern HTML and CSS styling can be used to great advantage to create truly modern reports that put BIRT to shame.
+
+One "small" feature Ernie provides is a table of contents. BIRT provides something claiming to be this, but it is horribly broken and generally looks horrible. By broken I am specifically referring to the fact that you cannot get BIRT to display page numbers corresponding to printed pages without ridiculous hacks. ( I have done these hacks, and will distribute these on github as well so that people can use them if they really insist on using BIRT... )
+
+Another major difference between BIRT and Ernie is the size of the configuration files for a report. The initial report I had in BIRT was around 2mb of XML. The equivalent configuration in Ernie is 31kb. That is a reduction by 64x. Intermediary data files are also much smaller. For that same report, the intermediary BIRT "report document" ranges from 3mb to 6mb. The equivalent files in Ernie are 20kb to 40kb. Essentially, in regard to size and speed, BIRT is an elephant and Ernie is a cheetah.
+
+On a downside Ernie is brand new, was created by a team of 1 person in about a month, and has little to no documentation currently. Feel free to contribute to the project to make it better and address this issue.
