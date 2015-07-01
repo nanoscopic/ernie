@@ -4,7 +4,7 @@ use XML::Bare qw/forcearray xval/;
 use Data::Dumper;
 #use Text::Template qw/fill_in_string/;
 use lib '../../Template-Bare/lib';
-use Template::Bare qw/fill_in_string tpl_to_chunks/;
+use Template::Bare qw/fill_in_string tpl_to_chunks create_delayed fill_in_delayed/;
 use JSON::XS;
 use lib '../../HTML-Bare/blib/lib';
 use lib '../../HTML-Bare/blib/arch';
@@ -608,7 +608,7 @@ sub run_type {
               my $item = $sorted[ $i ];
               my $n = $xys->[ $item->{'pi'} ];
               #if( $n && ref( $n ) ne 'ARRAY' ) {
-                $n = fill_in_xy( $n );
+                $n = fill_in_xy( $n, { gi => $i } );
                 push( @sxys, $n );
                 delete $item->{'pi'};
               #}
@@ -639,7 +639,7 @@ sub run_type {
             for( my $i=0;$i<scalar @$xys; $i++ ) {
               my $xy = $xys->[ $i ];
               next if( !$xy );
-              $xy = fill_in_xy( $xy );
+              $xy = fill_in_xy( $xy, { gi => $i } );
               push( @sxys, $xy );
             }
             
@@ -647,7 +647,11 @@ sub run_type {
           }
         }
         
-        
+        my $sets = $gp->{'sets'};
+        my $gi = 0;
+        for my $set ( @$sets ) {
+          fill_in_rows( $set, 'header', $gi++ );
+        }
       }
     }
   }
@@ -687,10 +691,9 @@ sub run_type {
         
         push( @newdet, $det ) if( $det );
         
-        
         my $xy = $output->{'xys'}[ $pi ];
         if( defined $xy ) {
-          $xy = fill_in_xy( $xy );
+          $xy = fill_in_xy( $xy, { gi => $i } );
           push( @newxys, $xy );
         }
       }
@@ -700,45 +703,60 @@ sub run_type {
     }
   }
   
-  my $detail = $output->{'detail'};
-  if( $detail && @$detail ) {
-    my @det2;
-    
+  fill_in_rows( $output, $type_name, 0 );
+}
+
+sub fill_in_rows {
+  my ( $output, $type_name, $gi ) = @_;
+  
+  my $detail = $output->{$type_name};
+  if( !$detail || ! @$detail ) { return; }
+  
+  if( $type_name eq 'header' ) {
     #print STDERR Dumper( $detail );
-    for my $arr ( @$detail ) {
-      next if( !$arr );
-      if( !ref( $arr ) ) {
-        push( @det2, $arr );
-        next;
-      }
-      
-      my $one = '';
-      for my $item ( @$arr ) {
-        next if( !$item );
-        my $type = $item->{'type'};
-        if( $type eq 'text' ) {
-          my $val = $item->{'text'};
-          if( defined $val ) {
-            #push( @det2, $val );
-            $one .= $val;
-          }
-        }
-        if( $type eq 'delayed' ) {
-          my $pre = $item->{'pre'};
-          my $post = $item->{'post'};
-          $one .= $pre;
-          $one .= fill_in_delayed( $item->{'object'}, { i => 0 } );
-          $one .= $post;
-        }
-      }
-      push( @det2, $one );
-    }
-    $output->{'detail'} = \@det2;
   }
+  
+  my @det2;
+    
+  #print STDERR Dumper( $detail );
+  for my $arr ( @$detail ) {
+    next if( !$arr );
+    if( !ref( $arr ) ) {
+      push( @det2, $arr );
+      next;
+    }
+    
+    my $one = '';
+    for my $item ( @$arr ) {
+      next if( !$item );
+      my $type = $item->{'type'};
+      if( $type eq 'text' ) {
+        my $val = $item->{'text'};
+        if( defined $val ) {
+          #push( @det2, $val );
+          $one .= $val;
+        }
+      }
+      if( $type eq 'delayed' ) {
+        my $pre = $item->{'pre'};
+        my $post = $item->{'post'};
+        $one .= $pre;
+        $one .= fill_in_delayed( $item->{'object'}, { gi => $gi } );
+        $one .= $post;
+      }
+    }
+    push( @det2, $one );
+  }
+  
+  if( $type_name eq 'header' ) {
+    #print STDERR Dumper( \@det2 );
+  }
+  
+  $output->{$type_name} = \@det2;
 }
 
 sub fill_in_xy {
-  my $xy = shift;
+  my ( $xy, $hash ) = @_;
   
   #print STDERR Dumper( $xy );
   my %xy2;
@@ -748,12 +766,12 @@ sub fill_in_xy {
     if( ref( $ob ) eq 'ARRAY' ) {
       my @r;
       for my $oneob ( @$ob ) {
-        push( @r, fill_xy_val( $oneob ) );
+        push( @r, fill_xy_val( $oneob, $hash ) );
       }
       $out  = \@r;
     }
     else {
-      $out = fill_xy_val( $ob );
+      $out = fill_xy_val( $ob, $hash );
     }
     
     $xy2{ $key } = $out;
@@ -763,7 +781,7 @@ sub fill_in_xy {
 }
 
 sub fill_xy_val {
-  my $ob = shift;
+  my ( $ob, $hash ) = @_;
   my $type = $ob->{'type'};
   my $out;
   if( $type eq 'text' ) {
@@ -772,7 +790,7 @@ sub fill_xy_val {
   elsif( $type eq 'delayed' ) {
     my $pre = $ob->{'pre'} || '';
     my $post = $ob->{'post'} || '';
-    $out = $pre . fill_in_delayed( $ob->{'object'}, { i => 0 } ) . $post;
+    $out = $pre . fill_in_delayed( $ob->{'object'}, $hash ) . $post;
   }
   return $out;
 }
@@ -860,9 +878,9 @@ sub run_raw_type {
       if( $header->{'td'} ) { $ths = forcearray( $header->{'td'} ); $th_td = 'td'; }
       #$out .= "  <tr>\n";
       my $out = "";
-      if( $type_name eq 'detail' ) {
+      #if( $type_name eq 'detail' ) {
         $out = [];
-      }
+      #}
       
       for my $th ( @$ths ) {
         my $val = xval( $th ) || '';
@@ -900,17 +918,17 @@ sub run_raw_type {
         if( $th->{'width'} ) {
           $cs = " width=\"" . xval( $th->{'width'} ) . "\"";
         }
-        if( $type_name eq 'detail' ) {
+        #if( $type_name eq 'detail' ) {
           if( $th->{'delay'} ) {
             push( $out, { type => 'delayed', pre => "    <$th_td$cs>", post => "</$th_td>\n", object => $dval } );
           }
           else {
             push( $out, { type => 'text', text => "    <$th_td$cs>$val</$th_td>\n" } );
           }
-        }
-        else {
-          $out .= "    <$th_td$cs>$val</$th_td>\n";
-        }
+        #}
+        #else {
+        #  $out .= "    <$th_td$cs>$val</$th_td>\n";
+        #}
         if( $th->{'sort'} ) {
           $sort = $val;
           $sort_dir = xval( $th->{'sort'} ) || 'desc';
@@ -1262,6 +1280,7 @@ sub chart {
 
 sub std_color {
   my $i = shift;
+  if( $i == -1 ) { return 'rgb(192,192,192)'; } 
   my $colors = [
       [128,166,212],
       [253,133,175],
