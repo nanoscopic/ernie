@@ -367,14 +367,20 @@ sub run_table {
   run_type( $output, 'footer', $group_stack, $table, $rows, $byname, $table->{'group'} ? 1 : 0 );
   
   if( $table->{'chart'} ) {
-    pass_chart_options( $table->{'chart'}, $output );
+    my $charts = forcearray( $table->{'chart'} );
+    my @chart_data_blocks;
+    for my $chart ( @$charts ) {
+      my $chartdata = pass_chart_options( $chart );
+      push( @chart_data_blocks, $chartdata );
+    }
+    $output->{'chart'} = \@chart_data_blocks;
   }
   
   return $output;
 }
 
 sub pass_chart_options {
-  my ( $chart, $output ) = @_;
+  my ( $chart ) = @_;
   my $type = $chart->{'type'};
   my $o = {
     type => xval( $chart->{'type'} ),
@@ -386,7 +392,10 @@ sub pass_chart_options {
   if( $chart->{'jitterLabels'} ) {
     $o->{'jitterLabels'} = 1;
   }
-  $output->{'chart'} = $o;
+  if( $chart->{'name'} ) {
+    $o->{'name'} = xval( $chart->{'name'} );
+  }
+  return $o;
 }
 
 sub process_virtuals {
@@ -701,6 +710,19 @@ sub run_type {
       $output->{'detail'} = \@newdet;
       $output->{'xys'} = \@newxys;
     }
+    else {
+      my $xys = $output->{'xys'};
+            
+      my @sxys;
+      for( my $i=0;$i<scalar @$xys; $i++ ) {
+        my $xy = $xys->[ $i ];
+        next if( !$xy );
+        $xy = fill_in_xy( $xy, { gi => $i } );
+        push( @sxys, $xy );
+      }
+      
+      $output->{'xys'} = \@sxys;
+    }
   }
   
   fill_in_rows( $output, $type_name, 0 );
@@ -918,17 +940,24 @@ sub run_raw_type {
         if( $th->{'width'} ) {
           $cs = " width=\"" . xval( $th->{'width'} ) . "\"";
         }
-        #if( $type_name eq 'detail' ) {
+        
+        if( $th->{'fullnode'} ) {
+          if( $th->{'delay'} ) {
+            push( $out, { type => 'delayed', object => $dval } );
+          }
+          else {
+            push( $out, { type => 'text', text => $val } );
+          }
+        }
+        else {
           if( $th->{'delay'} ) {
             push( $out, { type => 'delayed', pre => "    <$th_td$cs>", post => "</$th_td>\n", object => $dval } );
           }
           else {
             push( $out, { type => 'text', text => "    <$th_td$cs>$val</$th_td>\n" } );
           }
-        #}
-        #else {
-        #  $out .= "    <$th_td$cs>$val</$th_td>\n";
-        #}
+        }
+        
         if( $th->{'sort'} ) {
           $sort = $val;
           $sort_dir = xval( $th->{'sort'} ) || 'desc';
@@ -1062,7 +1091,7 @@ sub count_where {
 
 sub count_distinct {
   my ( $gp, $col ) = @_;
-  my $rows = $ctx->{'rows'};
+  my $rows = $gp || $ctx->{'rows'};
   my %hash;
   for my $row ( @$rows ) {
     $hash{ $row->{$col} } = 1;
