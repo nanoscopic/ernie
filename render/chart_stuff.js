@@ -17,7 +17,7 @@ function addLabel( eventEmitter, useForeignObject, positionalData, group, classe
     if( type == 'Y' ) {
       var x = positionalData.x;
       var y = positionalData.y;
-      positionalData.transform = 'translate('+x+','+y+')rotate(90)translate('+(-x)+','+(-y)+')';
+      positionalData.transform = 'translate('+x+','+y+')rotate(270)translate('+(-x)+','+(-y)+')';
       labelElement = group.elem('text', positionalData, classes.join(' ')+' vertical').text( label );
       var node = labelElement._node;
       //var x = node.x.baseVal[0].value;
@@ -59,13 +59,16 @@ Chartist.createAxisLabel = function( axis, axisOffset, labelOffset, group, event
   
   var label = options.label;
   var textWidth = getTextWidth( label );
+  var top = options.top || 0;
+  var left = options.left || 0;
   
   if( type == 'Y' ) {
-    positionalData[axis.units.pos] += ( optionsg.height/2) - textWidth/2; // move down so it's visible on the left
+    positionalData[axis.units.pos] += ( optionsg.height/2) + textWidth/2 + top; // move down so it's visible on the left
+    positionalData[axis.counterUnits.pos] += 10 + left;
   }
   else {
-    positionalData[axis.units.pos] += ( optionsg.width /2) - textWidth/2 ; // move to the right
-    positionalData[axis.counterUnits.pos] += 40; // move down under other labels
+    positionalData[axis.units.pos] += ( optionsg.width /2) - textWidth/2 + left; // move to the right
+    positionalData[axis.counterUnits.pos] += 40 + top; // move down under other labels
   }
   
   var useForeignObject = 0;
