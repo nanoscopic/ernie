@@ -60,7 +60,7 @@ sub transform_data {
     $output->{'json'} = $json_tpl;
   }
   
-  open( OUT, ">../data/out_${report_type}_$report_run_id.json" );
+  open( OUT, ">../data/out_$report_run_id.json" );
   print OUT JSON::XS->new->utf8->pretty(1)->encode( $output );
   close( OUT );
   #print Dumper( $output );
@@ -138,7 +138,7 @@ sub config_to_json_tpl {
   
   #print "Pages have been run\n";
   
-  my $file = "../configuration/config_$report_type.json";
+  my $file = "../data/config_$report_run_id.json";
   unlink $file;
   open( my $confj, ">$file" ) or die "Cannot open $file";
   print $confj JSON::XS->new->utf8->pretty(1)->encode( $all );

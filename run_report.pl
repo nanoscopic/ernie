@@ -15,14 +15,14 @@ chdir "extract_data";
 chdir "../transform_data";
 `./run_report.pl $report_type $report_id`;
 chdir "..";
-unlink("./render/out.json");
-copy("./data/out_${report_type}_$report_id.json","./render/out.json");
+#unlink("./render/out.json");
+#copy("./data/out_${report_type}_$report_id.json","./render/out.json");
 
 # transform template from backend XML to frontend JSON, utilizing results from table and chart data generation
 #chdir "transform_template";
 #`./config_to_json_tpl.pl $report_type`;
 #chdir "..";
-copy("./configuration/config_$report_type.json","./render/config.json");
+#copy("./configuration/config_$report_type.json","./render/config.json");
 
 # do "frontend" report generation, reading in created data JSON and transformed template JSON
 
