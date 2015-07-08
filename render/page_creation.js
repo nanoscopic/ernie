@@ -40,18 +40,18 @@ function make_page( box ) {
                       name: 'tr',
                       sub: [
                         { name: 'td', sub: { name: 'text', text: 'Report:' } },
-                        { name: 'td', style: { minWidth: '60px' }, sub: { name: 'text', text: '6' } },
+                        { name: 'td', style: { minWidth: '60px' }, sub: { name: 'text', text: config.json.report_id } },
                         { name: 'td', sub: { name: 'text', text: 'Survey:' } },
-                        { name: 'td', sub: { name: 'text', text: 'Multiple Surveys' } }
+                        { name: 'td', sub: { name: 'text', text: config.json.survey } }
                       ]
                     },
                     {
                       name: 'tr',
                       sub: [
                         { name: 'td', sub: { name: 'text', text: 'Submitted by:' } },
-                        { name: 'td', sub: { name: 'text', text: '' } },
+                        { name: 'td', sub: { name: 'text', text: config.json.submitted_by } },
                         { name: 'td', sub: { name: 'text', text: 'Submitted on:' } },
-                        { name: 'td', sub: { name: 'text', text: 'Jan 15, 2014' } },
+                        { name: 'td', sub: { name: 'text', text: config.json.submitted_on } },
                       ]
                     },
                     {

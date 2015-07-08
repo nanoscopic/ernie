@@ -1,0 +1,175 @@
+.vertical {
+  /*glyph-orientation-vertical: 90;
+  writing-mode: tb;*/
+  font-weight: bold;
+}
+.ct-chart-pie .ct-label {
+  fill: rgba(255,255,255,1) !important;
+}
+.ct-chart-bar .ct-label {
+  color: rgba(0,0,0,1) !important;
+  text-align: center;
+}
+@font-face {
+  font-family: 'Open Sans';
+  font-style: normal;
+  font-weight: 400;
+  src: url(opensans.ttf) format('truetype');
+}
+body, td, th {
+  font-family: 'Open Sans';
+}
+
+table {
+  margin-bottom: 25px;
+}
+/*html, body {
+  padding: 0px;
+  margin: 0px;
+  height: 120%;
+}
+.page {
+  border: solid 1px white;
+  width: 800px;
+}*/
+
+body {
+  width: 100%;
+  height: 100%;
+  margin: 0;
+  padding: 0;
+}
+
+* {
+  box-sizing: border-box;
+  -moz-box-sizing: border-box;
+}
+
+.page {
+  width: 8.5in;
+  min-height: 11in;
+  height: 11in;
+  margin: 0 auto;
+  border: 3px blue solid;
+  background: white;
+  overflow: hidden;
+}
+  
+@page {
+    size: letter;
+    margin: 0;
+}
+  
+@media print {
+  html, body {
+      width: 8.5in;
+      height: 11in;        
+  }
+  .page {
+    margin: 0;
+    border: initial;
+    border-radius: initial;
+    width: initial;
+    min-height: initial;
+    box-shadow: initial;
+    background: initial;
+    page-break-after: always;
+  }
+}
+
+.pageDone {
+  /*height: 1085px;*//* 1090 */
+  /*min-height: 100%;*/
+  min-height: 11in !important;
+}
+
+.inside {
+  padding: 10px;
+}
+
+
+.c {
+  text-align: center;
+}
+.location {
+  font-size: 13pt;
+  font-weight: bold;
+}
+.survey_type {
+  font-size: 20pt;
+  text-align: center;
+}
+.b1, .b2 {
+  display: inline-block;
+  padding-right: 30px;
+}
+.b2 {
+  padding-left: 20px;
+}
+.num {
+  display: inline-block;
+  text-align: left;
+  padding-left: 10px;
+}
+#surveys th {
+  text-align: left;
+  text-decoration: underline;
+}
+#surveys td {
+  padding-right: 20px;
+}
+.minichart {
+  display: inline-block;
+  width: 95%;
+  border: solid 1px #999;
+  margin-right: 20px;
+}
+.minichart th {
+  background: #eee;
+  border-bottom: solid 1px #999;
+  border-left: solid 1px #999;
+}
+.minichart td {
+  padding: 0px 8px;
+  border-bottom: solid 1px #999;
+  border-left: solid 1px #999;
+}
+.minichart table {
+  position: relative;
+  left: -1px;
+  width: 100%;
+}
+.inner {
+  height: 250px;
+}
+.mixed th {
+  background: #eee;
+  border-bottom: solid 1px #999;
+  border-left: solid 1px #999;
+  padding: 2px 4px;
+}
+.mixed {
+  border-top: solid 1px #999;
+  border-right: solid 1px #999;
+}
+table.mixed, div.bigbox, div.page {
+  page-break-inside: avoid;
+}
+.mixed td {
+  border-bottom: solid 1px #999;
+  border-left: solid 1px #999;
+  padding: 2px 4px;
+}
+.bigbox {
+  border: solid 1px #999;
+}
+.biggraph {
+  width: 400px;
+  height: 400px;
+  background: #eee;
+  margin-left: 20px;
+  margin-bottom: 20px;
+}
+.noborder td {
+  border: 0
+}
