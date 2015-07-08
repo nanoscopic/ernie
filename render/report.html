@@ -8,36 +8,33 @@
   <script src="../../PageSpanner/PageSpanner.js"></script>
   <script src="../../DomCascade/protocut/dom-cascade.js"></script>
   <script src="page_creation.js"></script>
-  <script>
-  // Polyfill for headless browsers that don't implement bind
-  Function.prototype.bind = Function.prototype.bind || function ( self ) { var fn = this; return function () { return fn.apply( self, arguments ) } };
-  </script>
   <script src="dist/chartist.js"></script>   
   <script src="chart_stuff.js"></script>
   <script>
-  function go() {
-    new Ajax( "config.json", { onComplete: go2 } );
-  }
-  var config;
-  function go2( response ) {
-    config = JSON.parse( response.transport.responseText );
-    new Ajax( "out.json", { onComplete: go3 } );
-  }
-  
-  function go3( response ) {
-    var out = JSON.parse( response.transport.responseText );
-    var spanner = new PageSpanner( {
-      tables: out.tables,
-      page_tpl_generator: make_page
-    }, out );
-    spanner.add_pages( config.pages );
-    spanner.fillToc();
-  }
+    function go() {
+      var qhash = _queryhash();
+      var rid = qhash.rid || 0;
+      
+      new Ajax( config_url( rid ), { onComplete: function( response ) {
+        var config = JSON.parse( response.transport.responseText );
+        new Ajax( out_url( rid ), { onComplete: function( response ) {
+          var out = JSON.parse( response.transport.responseText );
+          var spanner = new PageSpanner( {
+            tables: out.tables,
+            page_tpl_generator: make_page
+          }, out );
+          spanner.add_pages( config.pages );
+          spanner.fillToc();
+        } } );
+      } } );
+    }
+    function config_url( rid ) { return rid ? ( "config_" + rid + ".json" ) : "config.json"; }
+    function out_url(    rid ) { return rid ? ( "out_"    + rid + ".json" ) : "out.json";    }
   </script>
   <style>
-  @import url('dist/chartist.min.css');
-  @import url('toc.css');
-  @import url('render.css');
+    @import url('dist/chartist.min.css');
+    @import url('toc.css');
+    @import url('render.css');
   </style>
 </head>
 <body onload='go()'>
