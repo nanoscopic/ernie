@@ -10,14 +10,31 @@
   color: rgba(0,0,0,1) !important;
   text-align: center;
 }
-@font-face {
+/*@font-face {
   font-family: 'Open Sans';
   font-style: normal;
   font-weight: 400;
   src: url(opensans.ttf) format('truetype');
+}*/
+@font-face {
+  font-family: 'Arimo';
+  font-style: normal;
+  font-weight: 400;
+  src: url(Arimo-Regular.ttf) format('truetype');
+  src: local('Arimo'), url(HNu4Nzh6q8Es60EMNZhs9w.woff2) format('woff2'), url(wZLYhRRxZWGToTRP78bqJQ.woff) format('woff');
+}
+@font-face {
+  font-family: 'Arimo';
+  font-style: normal;
+  font-weight: 700;
+  src: url(Arimo-Bold.ttf) format('truetype');
+  src: local('Arimo Bold'), local('Arimo-Bold'), url(27rE5lMk9EHpLbxiIuGd0PesZW2xOQ-xsNqO47m55DA.woff2) format('woff2'), url(UnXpojilM3XslYxUnWuVe_esZW2xOQ-xsNqO47m55DA.woff) format('woff');
 }
 body, td, th {
-  font-family: 'Open Sans';
+  font-family: 'Arimo';
+}
+h1 {
+  margin-top: 5px;
 }
 
 table {
