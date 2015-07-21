@@ -1,19 +1,19 @@
 <!doctype html>
 <html>
 <head>
-  <script src='../../protocut/base.js'></script>
-  <script src='../../protocut/dom.js'></script>
-  <script src='../../protocut/ajax.js'></script>
-  <script src='../../protocut/misc.js'></script>
-  <script src="../../PageSpanner/PageSpanner.js"></script>
-  <script src="../../DomCascade/protocut/dom-cascade.js"></script>
-  <script src="page_creation.js"></script>
+  <script src='github/protocut/base.js'></script>
+  <script src='github/protocut/dom.js'></script>
+  <script src='github/protocut/ajax.js'></script>
+  <script src='github/protocut/misc.js'></script>
+  <script src="github/PageSpanner/PageSpanner.js"></script>
+  <script src="github/DomCascade/protocut/dom-cascade.js"></script>
+  <script src="page_creation_bridgestone.js"></script>
   <script src="dist/chartist.js"></script>   
   <script src="chart_stuff.js"></script>
   <script>
     function go() {
       var qhash = _queryhash();
-      var rid = qhash.rid || 0;
+      var rid = qhash.rid || 15;
       
       new Ajax( config_url( rid ), { onComplete: function( response ) {
         var config = JSON.parse( response.transport.responseText );
