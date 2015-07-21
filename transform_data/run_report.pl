@@ -21,8 +21,16 @@ my %map;
 my ( $ob1, $conf ) = XML::Bare->new( file => "../configuration/config_$report_type.xml" );
 $conf = $conf->{'xml'};
 
+my %backend_charts;
 my $mapped_data = transform_data();
 config_to_json_tpl( $mapped_data );
+write_backend_charts();
+
+sub write_backend_charts {
+  open( OUTC, ">../data/charts_$report_run_id.json" );
+  print OUTC JSON::XS->new->utf8->pretty(1)->encode( \%backend_charts );
+  close( OUTC );
+}
 
 sub transform_data {
   #my ( $ob1, $conf ) = XML::Bare->new( file => 'simple_config.xml' );
@@ -104,9 +112,14 @@ sub map_to_mapped {
   for my $key ( keys %map ) {
     #print "Key: $key\n";
     my $dest = $map{ $key };
+    
     my $node = $alldata->{ $dest };
     if( ref( $node ) && $node->{'row'} ) {
-      $mapped{ $key } = $node->{'row'};
+      my $row = $node->{'row'};
+      if( ref( $row ) eq 'HASH' ) {
+        $row = [ $row ];
+      }
+      $mapped{ $key } = $row;
     }
     else {
       $mapped{ $key } = [];
@@ -241,6 +254,9 @@ sub combine_fragments {
 
 sub chunks_complete {
   my $chunks = shift;
+  
+  #print Dumper( $chunks );
+  
   my $txt = '';
   my $len = scalar @$chunks;
   if( $len == 1 ) {
@@ -374,9 +390,60 @@ sub run_table {
       push( @chart_data_blocks, $chartdata );
     }
     $output->{'chart'} = \@chart_data_blocks;
+    find_backend_charts( xval( $table->{'name'} ), $output->{'chart'}, find_xys( $output ) );
   }
   
   return $output;
+}
+
+sub find_xys {
+  my $conf = shift;
+  return if( !$conf || !ref( $conf ) );
+  my $ref = ref( $conf );
+  my @xys;
+  if( $ref eq 'HASH' ) {
+    if( $conf->{'xys'} ) {
+      return $conf->{'xys'};
+    }
+    
+    for my $key ( keys %$conf ) {
+      my $val = $conf->{ $key };
+      my $res = find_xys( $val );
+      if( $res ) {
+        push( @xys, @$res );
+      }
+    }
+    
+  }
+  if( $ref eq 'ARRAY' ) {
+    for my $item ( @$conf ) {
+      my $res = find_xys( $item );
+      if( $res ) {
+        push( @xys, @$res );
+      }
+    }
+  }
+  if( @xys ) {
+    return \@xys;
+  }
+  return 0;
+}
+
+sub find_backend_charts {
+  my ( $tb_name, $charts, $xys ) = @_;
+  for my $chart ( @$charts ) {
+    if( $chart->{'name'} ) {
+      $tb_name .= "-".$chart->{'name'};
+    }
+    next if( $chart->{'type'} ne 'pie' );
+    my @ys;
+    for my $xy ( @$xys ) {
+      push( @ys, $xy->{'y'}*1 );
+    }
+    $backend_charts{ $tb_name } = {
+      data => \@ys
+    };
+  }
 }
 
 sub pass_chart_options {
