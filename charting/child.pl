@@ -81,7 +81,7 @@ print TEXF $tpl;
 close( TEXF );
 
 `pdflatex -output-directory temp $ofile`;
-`pdfcrop --margins 0 $pdf`;
+`./pdfcrop.pl --margins 0 $pdf`;
 `convert -density 288 -resize 25% -quality 90 -flatten $crop -trim +repage $png`;
 unlink $ofile;
 unlink $pdf;
