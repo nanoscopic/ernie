@@ -393,6 +393,10 @@ sub run_table {
     find_backend_charts( xval( $table->{'name'} ), $output->{'chart'}, find_xys( $output ) );
   }
   
+  if( $table->{'islegend'} ) {
+    $output->{'islegend'} = 1;
+  }
+  
   return $output;
 }
 
@@ -1333,7 +1337,7 @@ sub lip {
 sub sum {
   my ( $gp, $col ) = @_;
   my $sum = 0;
-  my $rows = $ctx->{'rows'};
+  my $rows = $gp || $ctx->{'rows'};
   for my $row ( @$rows ) {
     # col could also be an expression
     my $val = $row->{ $col };
