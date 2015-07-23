@@ -7,7 +7,7 @@
   <script src='github/protocut/misc.js'></script>
   <script src="github/PageSpanner/PageSpanner.js"></script>
   <script src="github/DomCascade/protocut/dom-cascade.js"></script>
-  <script src="page_creation_bridgestone.js"></script>
+  <script src="page_creation_branded.js"></script>
   <script src="dist/chartist.js"></script>   
   <script src="chart_stuff.js"></script>
   <script>
@@ -21,7 +21,8 @@
           var out = JSON.parse( response.transport.responseText );
           var spanner = new PageSpanner( {
             tables: out.tables,
-            page_tpl_generator: make_page
+            page_tpl_generator: make_page,
+            rid: rid
           }, out );
           spanner.add_pages( config.pages );
           spanner.fillToc();
