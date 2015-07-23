@@ -108,7 +108,7 @@ sub reduce_data {
       [255,194,103],
       [255,128,129]
   ];
-  my $numcolors = 3;
+  my $numcolors = 8;
   my $grey = [ 128, 128, 128 ];
   my $greynum = 0;
   
