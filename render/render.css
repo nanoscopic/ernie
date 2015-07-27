@@ -35,10 +35,14 @@ body, td, th {
 }
 h1 {
   margin-top: 5px;
+  margin-bottom: 10px;
+  font-size: 17pt;
 }
-
+h2 {
+  font-size: 15pt;
+}
 table {
-  margin-bottom: 25px;
+  margin-bottom: 15px;
 }
 /*html, body {
   padding: 0px;
