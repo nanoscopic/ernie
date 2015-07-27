@@ -81,11 +81,11 @@ print TEXF $tpl;
 close( TEXF );
 
 `pdflatex -output-directory temp $ofile`;
-`./pdfcrop.pl --margins 0 $pdf`;
-`convert -density 288 -resize 25% -quality 90 -flatten $crop -trim +repage $png`;
+#`./pdfcrop.pl --margins 0 $pdf`;
+`convert -density 216 -resize 33% -flatten $pdf -trim +repage $png`; # -quality 70 
 unlink $ofile;
 unlink $pdf;
-unlink $crop;
+#unlink $crop;
 unlink $log;
 unlink $aux;
 
