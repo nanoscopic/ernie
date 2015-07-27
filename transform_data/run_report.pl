@@ -22,8 +22,8 @@ my ( $ob1, $conf ) = XML::Bare->new( file => "../configuration/config_$report_ty
 $conf = $conf->{'xml'};
 
 my %backend_charts;
-my $mapped_data = transform_data();
-config_to_json_tpl( $mapped_data );
+my ( $mapped_data, $table_hash ) = transform_data();
+config_to_json_tpl( $mapped_data, $table_hash );
 write_backend_charts();
 
 sub write_backend_charts {
@@ -73,7 +73,7 @@ sub transform_data {
   close( OUT );
   #print Dumper( $output );
   
-  return $mapped_data;
+  return ( $mapped_data, $table_outputs );
 }
 
 sub recurse_fill {
@@ -129,14 +129,14 @@ sub map_to_mapped {
 }
 
 sub config_to_json_tpl {
-  my ( $mapped_data ) = @_;
+  my ( $mapped_data, $table_hash ) = @_;
   
   my $pages = forcearray( $conf->{'page'} );
   
   #print Dumper( $mapped{ 'survey_info' } );
   #exit;
     
-  my $ctx = { data => $mapped_data, report_id => $report_run_id };
+  my $ctx = { data => $mapped_data, report_id => $report_run_id, tables => $table_hash };
   $TPL::ctx = $ctx;
   
   my $pagearr = [];
@@ -622,6 +622,12 @@ sub run_type {
         
         run_raw_type( $gpoutput, 'footer', $group_stack, $gpfooters, $subrows, $byname, $grouped );
         
+        my $gpflags = $gpoutput->{'flags'};
+        if( %$gpflags ) {
+          my $curflags = $output->{'flags'} || {};
+          $output->{'flags'} = { %$curflags, %$gpflags };
+        }
+        
         if( $gpoutput->{'xys'} ) {
           push( @allxys, @{ $gpoutput->{'xys'} } );
           delete $gpoutput->{'xys'};
@@ -900,6 +906,7 @@ sub run_raw_type {
   my @sortstack;
   my $sortdir2 = 'asc';
   my @xys;
+  my %flags;
   for( my $i=0;$i<$numrows;$i++ ) {
     my $looprow = $looprows->[ $i ];
     
@@ -936,6 +943,11 @@ sub run_raw_type {
           $cond = $row1->{ $cond };
         }
         next if( !$cond );
+      }
+      
+      if( $header->{'flag'} ) {
+        my $flag = xval $header->{'flag'};
+        $flags{ $flag } = 1;
       }
       
       my $xy = 0;
@@ -1073,6 +1085,14 @@ sub run_raw_type {
         add_array_item( $output, $type_name, $out );
       }
     }
+  }
+  my $curflags = $output->{'flags'} || {};
+  if( %flags ) {
+    print STDERR Dumper( \%flags );
+    $output->{'flags'} = { %flags, %$curflags };
+  }
+  else {
+    $output->{'flags'} = $curflags;
   }
   if( !$grouped ) {
     $output->{'sortdir'} = $sortdir2;
