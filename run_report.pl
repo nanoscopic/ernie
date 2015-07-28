@@ -15,6 +15,10 @@ chdir "extract_data";
 chdir "../transform_data";
 `./run_report.pl $report_type $report_id`;
 chdir "..";
+
+chdir "charting";
+`./render_charts.pl $report_id`;
+
 #unlink("./render/out.json");
 #copy("./data/out_${report_type}_$report_id.json","./render/out.json");
 
