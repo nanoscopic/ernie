@@ -8,7 +8,11 @@ use XML::Bare qw/xval forcearray/;
 my $report_type = $ARGV[0];
 my $report_id = $ARGV[1];
 
-my ( $ob, $conf ) = XML::Bare->new( file => "../configuration/config_$report_type.xml" );
+my $conf_file = "../configuration/config_$report_type.xml";
+if( ! -e $conf_file ) {
+  die "File does not exist: $conf_file";
+}
+my ( $ob, $conf ) = XML::Bare->new( file => $conf_file );
 $conf = $conf->{'xml'};
 my $pconf = $conf->{'pulldata'};
 my $dbconf = $pconf->{'db'};
@@ -26,13 +30,64 @@ my $sources = forcearray( $pconf->{'source'} );
 for my $source ( @$sources ) {
   my $ns = xval $source->{'ns'};
   my $name = xval $source->{'name'};
-  dumpf( $ns, $name, $report_id );
+  if( $source->{'table'} ) {
+    dumpt( $ns, $name, $report_id );
+  }
+  elsif( $source->{'file'} ) {
+    dump_file( $name, xval( $source->{'file'} ) );
+  }
+  else {
+    dumpf( $ns, $name, $report_id );
+  }
   #dumpf( 'reporting', 'fn_detail', $report_id );
 }
 
-open( my $f, ">../data/raw_${report_type}_$report_id.xml" );
+my $rawf = "../data/raw_${report_type}_$report_id.xml";
+open( my $f, ">$rawf" ) or die "Cannot open $rawf for writing";
 print $f XML::Bare::Object::xml( 0, $xml );
 close( $f );
+
+sub dump_file {
+  my ( $name, $file ) = @_;
+  my $path = "../configuration/$file";
+  if( ! -e $path ) {
+    die "Cannot open $path";
+  }
+  my ( $ob, $xml1 ) = XML::Bare->new( file => $path );
+  $xml->{ $name } = $xml1;
+}
+
+sub dumpt {
+  my ( $loc, $func, $param ) = @_;
+  print "\n";
+  my $res = $sql->query( 'pg_catalog.pg_proc', ['pg_catalog.pg_get_function_result(oid) as a'], { proname => $func }, limit => 1 );
+  my $a = $res->{'a'};
+  my @qcols;
+  if( $a =~ m/^TABLE\((.+)\)$/ ) {
+    my $raw = $1;
+    my @cols = split(', ', $raw );
+    for my $col ( @cols ) {
+      if( $col =~ m/^([^ ]+) (.+)$/ ) {
+        my $name = $1;
+        my $type = $2;
+        push( @qcols, $name );
+        #print "$name\n";
+      }
+    }
+  }
+  
+  my $res2 = $sql->query( "$loc.$func($param)", \@qcols, {} );
+  #print Dumper( $res2 );
+  my @rows;
+  for my $row ( @$res2 ) {
+    my $rowx = {};
+    for my $col ( keys %$row ) {
+      $rowx->{ $col } = { value => $row->{ $col } };
+    }
+    push( @rows, $rowx );
+  }
+  $xml->{ $func } = { row => \@rows };
+}
 
 sub dumpf {
   my ( $loc, $func, $param ) = @_;
