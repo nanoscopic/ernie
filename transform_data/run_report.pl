@@ -441,8 +441,10 @@ sub find_backend_charts {
     }
     next if( $chart->{'type'} ne 'pie' );
     my @ys;
-    for my $xy ( @$xys ) {
-      push( @ys, $xy->{'y'}*1 );
+    if( $xys ) {
+      for my $xy ( @$xys ) {
+        push( @ys, $xy->{'y'}*1 );
+      }
     }
     $backend_charts{ $tb_name } = {
       data => \@ys
@@ -802,7 +804,7 @@ sub run_type {
     }
   }
   
-  fill_in_rows( $output, $type_name, 0 );
+  fill_in_rows( $output, $type_name, -1 );
 }
 
 sub fill_in_rows {
@@ -818,6 +820,7 @@ sub fill_in_rows {
   my @det2;
     
   #print STDERR Dumper( $detail );
+  my $loopi = 0;
   for my $arr ( @$detail ) {
     next if( !$arr );
     if( !ref( $arr ) ) {
@@ -840,11 +843,14 @@ sub fill_in_rows {
         my $pre = $item->{'pre'};
         my $post = $item->{'post'};
         $one .= $pre;
-        $one .= fill_in_delayed( $item->{'object'}, { gi => $gi } );
+        my $agi = $gi;
+        if( $agi == -1 ) { $agi = $loopi; }
+        $one .= fill_in_delayed( $item->{'object'}, { gi => $agi } );
         $one .= $post;
       }
     }
     push( @det2, $one );
+    $loopi++;
   }
   
   if( $type_name eq 'header' ) {
@@ -1352,6 +1358,15 @@ sub lip {
   my ( $s, $p, $n ) = @_;
   if( $n == 1 ) { return $s; }
   return $p;
+}
+
+sub lipi {
+  my ( $s, $p, $n ) = @_;
+  my $ret;
+  if( $n == 1 ) { $ret = $s; }
+  else { $ret = $p; }
+  $ret =~ s/\%s/$n/;
+  return $ret;
 }
 
 sub sum {
