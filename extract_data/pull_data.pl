@@ -86,11 +86,11 @@ sub dumpt {
     }
     push( @rows, $rowx );
   }
-  my $res = { row => \@rows };
+  my $res2 = { row => \@rows };
   if( !@rows ) {
-    $res->{'empty'} = 1;
+    $res2->{'empty'} = 1;
   }
-  $xml->{ $func } = $res;
+  $xml->{ $func } = $res2;
 }
 
 sub dumpf {
@@ -124,10 +124,10 @@ sub dumpf {
     }
     push( @rows, $rowx );
   }
-  my $res = { row => \@rows };
+  my $res2 = { row => \@rows };
   if( !@rows ) {
-    $res->{'empty'} = 1;
+    $res2->{'empty'} = 1;
   }
-  $xml->{ $func } = $res;
+  $xml->{ $func } = $res2;
 }
 #my $res = $sql->query( 'report_run', ['report_id'], { id => $rid }, limit => 1 );
