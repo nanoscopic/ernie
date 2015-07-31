@@ -305,7 +305,8 @@ sub read_data {
 
 sub get_data {
   my ( $name ) = @_;
-  if( !$alldata->{ $name } ) {
+  my $data = $alldata->{ $name };
+  if( !$data || ( !$data->{'empty'} && !$data->{'row'} ) ) {
     confess "Cannot get data for $name\n";
   }
   return $alldata->{ $name };
@@ -651,7 +652,7 @@ sub run_type {
           my $j = 0;
           for( my $i=0;$i<scalar @$gpsets; $i++ ) {
             my $item = $gpsets->[ $i ];
-            next if( !$item || !%$item );
+            next if( !$item || !%$item || ( !$item->{'header'} && !$item->{'detail'} ) );
             $item->{'pi'} = $j;
             $j++;
             push( @cleansets, $item );
@@ -662,7 +663,9 @@ sub run_type {
           
           if( !$dir || $dir eq '1' || $dir eq 'asc' ) {
             @sorted = sort {
-              $a->{'sort'} <=> $b->{'sort'}
+              my $c = $a->{'sort'};
+              my $d = $b->{'sort'};
+              ( $c=~m/^[0-9]+$/ && $d=~m/^[0-9]+$/ ) ? ( $c <=> $d ) : ( $c cmp $d )
             } @$gpsets;
           }
           elsif( $dir eq 'desc' ) { @sorted = sort { $b->{'sort'} <=> $a->{'sort'} } @$gpsets; }
@@ -690,6 +693,8 @@ sub run_type {
             my $numgpsets = scalar( @$gpsets );
             my $numxys = scalar( @$xys );
             #print STDERR "numgpsets: $numgpsets, numxys: $numxys\n";
+            
+            #print STDERR Dumper( $xys );
             
             # Use the original 'pi' 1 to n values to sort xy values the same as sorted items
             for( my $i=0;$i<scalar @sorted; $i++ ) {
@@ -1043,7 +1048,12 @@ sub run_raw_type {
             push( $out, { type => 'delayed', pre => "    <$th_td$cs>", post => "</$th_td>\n", object => $dval } );
           }
           else {
-            push( $out, { type => 'text', text => "    <$th_td$cs>$val</$th_td>\n" } );
+            if( $th->{'raw'} ) {
+              push( $out, { type => 'text', text => "    $val\n" } );
+            }
+            else {
+              push( $out, { type => 'text', text => "    <$th_td$cs>$val</$th_td>\n" } );
+            }
           }
         }
         
@@ -1094,7 +1104,7 @@ sub run_raw_type {
   }
   my $curflags = $output->{'flags'} || {};
   if( %flags ) {
-    print STDERR Dumper( \%flags );
+    #print STDERR Dumper( \%flags );
     $output->{'flags'} = { %flags, %$curflags };
   }
   else {
