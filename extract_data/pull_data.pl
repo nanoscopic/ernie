@@ -86,7 +86,11 @@ sub dumpt {
     }
     push( @rows, $rowx );
   }
-  $xml->{ $func } = { row => \@rows };
+  my $res = { row => \@rows };
+  if( !@rows ) {
+    $res->{'empty'} = 1;
+  }
+  $xml->{ $func } = $res;
 }
 
 sub dumpf {
@@ -120,6 +124,10 @@ sub dumpf {
     }
     push( @rows, $rowx );
   }
-  $xml->{ $func } = { row => \@rows };
+  my $res = { row => \@rows };
+  if( !@rows ) {
+    $res->{'empty'} = 1;
+  }
+  $xml->{ $func } = $res;
 }
 #my $res = $sql->query( 'report_run', ['report_id'], { id => $rid }, limit => 1 );
