@@ -798,11 +798,13 @@ sub run_type {
       my $xys = $output->{'xys'};
             
       my @sxys;
-      for( my $i=0;$i<scalar @$xys; $i++ ) {
-        my $xy = $xys->[ $i ];
-        next if( !$xy );
-        $xy = fill_in_xy( $xy, { gi => $i } );
-        push( @sxys, $xy );
+      if( $xys ) {
+        for( my $i=0;$i<scalar @$xys; $i++ ) {
+          my $xy = $xys->[ $i ];
+          next if( !$xy );
+          $xy = fill_in_xy( $xy, { gi => $i } );
+          push( @sxys, $xy );
+        }
       }
       
       $output->{'xys'} = \@sxys;
