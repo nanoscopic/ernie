@@ -1,6 +1,11 @@
 <!doctype html>
 <html>
 <head>
+  <style>
+    @import url('dist/chartist.min.css');
+    @import url('toc.css');
+    @import url('render.css');
+  </style>
   <script src='github/protocut/base.js'></script>
   <script src='github/protocut/dom.js'></script>
   <script src='github/protocut/ajax.js'></script>
@@ -11,10 +16,21 @@
   <script src="dist/chartist.js"></script>   
   <script src="chart_stuff.js"></script>
   <script>
+    var _base = "./";
     function go() {
       var qhash = _queryhash();
-      var rid = qhash.rid || 15;
-      
+      var rid = qhash.rid;
+      if( rid ) {
+        go2( rid );
+      }
+      else {
+        new Ajax( _base + "report.json", { onComplete: function( response ) {
+            var json = JSON.parse( response.transport.responseText );
+            go2( json.rid );
+        } } );
+      }
+    }
+    function go2( rid ) {
       new Ajax( config_url( rid ), { onComplete: function( response ) {
         var config = JSON.parse( response.transport.responseText );
         new Ajax( out_url( rid ), { onComplete: function( response ) {
@@ -22,21 +38,17 @@
           var spanner = new PageSpanner( {
             tables: out.tables,
             page_tpl_generator: make_page,
-            rid: rid
+            rid: rid//,
+            //container: document.body // set to some elements to use a different element
           }, out );
           spanner.add_pages( config.pages );
           spanner.fillToc();
         } } );
       } } );
     }
-    function config_url( rid ) { return rid ? ( "./data/config_" + rid + ".json" ) : "config.json"; }
-    function out_url(    rid ) { return rid ? ( "./data/out_"    + rid + ".json" ) : "out.json";    }
+    function config_url( rid ) { return rid ? ( _base + "data/config_" + rid + ".json" ) : _base + "config.json"; }
+    function out_url(    rid ) { return rid ? ( _base + "data/out_"    + rid + ".json" ) : _base + "out.json";    }
   </script>
-  <style>
-    @import url('dist/chartist.min.css');
-    @import url('toc.css');
-    @import url('render.css');
-  </style>
 </head>
 <body onload='go()'>
 </body>
