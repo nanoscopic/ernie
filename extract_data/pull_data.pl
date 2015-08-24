@@ -17,24 +17,31 @@ $conf = $conf->{'xml'};
 my $pconf = $conf->{'pulldata'};
 my $dbconf = $pconf->{'db'};
 
-my $hostip = xval( $dbconf->{'ip'} );# "127.0.0.1";
-my $user = xval( $dbconf->{'user'} );#"user";
-my $pw = xval( $dbconf->{'pw'} );#"password";
-
-print "Connecting to $hostip with user $user\n";
-my $sql = Pg::Helper->new( { host => $hostip, user => $user, password => $pw } );
+my $sql;
+if( $dbconf ) {
+  my $hostip = xval( $dbconf->{'ip'} );# "127.0.0.1";
+  my $user = xval( $dbconf->{'user'} );#"user";
+  my $pw = xval( $dbconf->{'pw'} );#"password";
+  
+  print "Connecting to $hostip with user $user\n";
+  $sql = Pg::Helper->new( { host => $hostip, user => $user, password => $pw } );
+}
 
 my $xml;
 
 my $sources = forcearray( $pconf->{'source'} );
+my %openfiles;
 for my $source ( @$sources ) {
   my $ns = xval $source->{'ns'};
   my $name = xval $source->{'name'};
   if( $source->{'table'} ) {
     dumpt( $ns, $name, $report_id );
   }
+  elsif( $source->{'query'} ) {
+    dump_query( $name, xval( $source->{'query'} ), $source );
+  }
   elsif( $source->{'file'} ) {
-    dump_file( $name, xval( $source->{'file'} ) );
+    dump_file( $name, xval( $source->{'file'} ), xval( $source->{'tag'} ) );
   }
   else {
     dumpf( $ns, $name, $report_id );
@@ -48,15 +55,89 @@ print $f XML::Bare::Object::xml( 0, $xml );
 close( $f );
 
 sub dump_file {
-  my ( $name, $file ) = @_;
+  my ( $name, $file, $tag ) = @_;
   my $path = "../configuration/$file";
   if( ! -e $path ) {
     die "Cannot open $path";
   }
-  my ( $ob, $xml1 ) = XML::Bare->new( file => $path );
+  my ( $ob, $xml1 );
+  if( $openfiles{ $file } ) {
+    $xml1 = $openfiles{ $file };
+  }
+  else {
+    ( $ob, $xml1 ) = XML::Bare->new( file => $path );
+    $openfiles{ $file } = $xml1;
+  }
+  
+  if( $tag ) {
+    $xml1 = $xml1->{ $tag };
+  }
+  
   $xml->{ $name } = $xml1;
 }
 
+
+sub dump_query {
+  my ( $name, $query, $conf ) = @_;
+  
+  #<where col='x' val='$report_id'/>
+  #<where col='svwp.survey_id'>
+  #      <value_source source="xml_surveys" column="survey_id" />
+  #    </where>
+  my $cwheres = forcearray( $conf->{'where'} );
+  my $where = {};
+  for my $cwhere ( @$cwheres ) {
+    my $col = xval $cwhere->{'col'};
+    my $val;
+    if( $cwhere->{'val'} ) {
+      $val = xval $cwhere->{'val'};
+      if( $val eq '$report_id' ) {
+        $val = $report_id;
+      }
+    }
+    if( $cwhere->{'value_source'} ) {
+      my $src = $cwhere->{'value_source'};
+      my $ds = xval $src->{'source'};
+      my $ds_col = xval $src->{'column'};
+      #print STDERR Dumper( $xml );
+      my $xmlrows = forcearray( $xml->{ $ds }{'row'} );
+      my @values;
+      #print STDERR Dumper( $xmlrows );
+      for my $xmlrow ( @$xmlrows ) {
+        my $value = xval $xmlrow->{ $ds_col };
+        push( @values, $value );
+      }
+      $val = \@values;
+    }
+    
+    $where->{ $col } = $val;
+  }
+  
+  my @cols = split( ',', xval( $conf->{'cols'} ) );
+  my $res = $sql->query( 'x', \@cols, $where, query => $query );
+  
+  my $rows = db_rows_to_xml_hash( $res );
+  my $res2 = { row => $rows };
+  if( !@$rows ) {
+    $res2->{'empty'} = 1;
+  }
+  
+  #print STDERR Dumper( $res2 );
+  #exit;
+  $xml->{$name} = $res2;
+}
+sub db_rows_to_xml_hash {
+  my $rows = shift;
+  my @outrows;
+  for my $row ( @$rows ) {
+    my $rowx = {};
+    for my $col ( keys %$row ) {
+      $rowx->{ $col } = { value => $row->{ $col } };
+    }
+    push( @outrows, $rowx );
+  }
+  return \@outrows;
+}
 sub dumpt {
   my ( $loc, $func, $param ) = @_;
   print "\n";
@@ -78,19 +159,13 @@ sub dumpt {
   
   my $res2 = $sql->query( "$loc.$func($param)", \@qcols, {} );
   #print Dumper( $res2 );
-  my @rows;
-  for my $row ( @$res2 ) {
-    my $rowx = {};
-    for my $col ( keys %$row ) {
-      $rowx->{ $col } = { value => $row->{ $col } };
-    }
-    push( @rows, $rowx );
-  }
-  my $res2 = { row => \@rows };
+  my @rows = db_rows_to_xml_hash( $res2 );
+  
+  my $res3 = { row => \@rows };
   if( !@rows ) {
-    $res2->{'empty'} = 1;
+    $res3->{'empty'} = 1;
   }
-  $xml->{ $func } = $res2;
+  $xml->{ $func } = $res3;
 }
 
 sub dumpf {
@@ -124,10 +199,10 @@ sub dumpf {
     }
     push( @rows, $rowx );
   }
-  my $res2 = { row => \@rows };
+  my $res3 = { row => \@rows };
   if( !@rows ) {
-    $res2->{'empty'} = 1;
+    $res3->{'empty'} = 1;
   }
-  $xml->{ $func } = $res2;
+  $xml->{ $func } = $res3;
 }
 #my $res = $sql->query( 'report_run', ['report_id'], { id => $rid }, limit => 1 );
