@@ -10,6 +10,13 @@
 \def\minpage#1{\setbox0\hbox{#1}\dimen0=\ht0\advance\dimen0 by\dp0%
   \special{papersize=\the\wd0,\the\dimen0}\box0\eject}
 
+\AtBeginDocument{%
+  \pdfhorigin=\dimexpr\pdfhorigin-1.25in\relax
+  \pdfvorigin=\dimexpr\pdfvorigin-1in\relax
+  \pdfpagewidth=\dimexpr\pdfpagewidth-5.2in\relax
+  \pdfpageheight=\dimexpr\pdfpageheight-9.3in\relax
+}%
+
 --COLORS--
 \pagenumbering{gobble}
 
