@@ -22,8 +22,8 @@ my ( $ob1, $conf ) = XML::Bare->new( file => "../configuration/config_$report_ty
 $conf = $conf->{'xml'};
 
 my %backend_charts;
-my ( $mapped_data, $table_hash ) = transform_data();
-config_to_json_tpl( $mapped_data, $table_hash );
+my ( $mapped_data, $table_hash, $table_results ) = transform_data();
+config_to_json_tpl( $mapped_data, $table_hash, $table_results );
 write_backend_charts();
 
 sub write_backend_charts {
@@ -42,6 +42,7 @@ sub transform_data {
   
   my $output = {};
   my $table_outputs = {};
+  my $table_results = {};
   $output->{'tables'} = $table_outputs;
   
   my $section = "all";
@@ -55,9 +56,10 @@ sub transform_data {
     elsif( $section eq 'all' ) {}
     else { next; }
     #run_table( 'table1' );
-    my $tb_out = run_table( $tables->{ $tb_name } );
+    my ( $tb_out, $tb_result ) = run_table( $tables->{ $tb_name }, $table_results );
     #my $tb_name = xval $table->{'name'};
     $table_outputs->{ $tb_name } = $tb_out;
+    $table_results->{ $tb_name } = $tb_result;
   }
   
   if( $conf->{'json'} ) {
@@ -73,7 +75,7 @@ sub transform_data {
   close( OUT );
   #print Dumper( $output );
   
-  return ( $mapped_data, $table_outputs );
+  return ( $mapped_data, $table_outputs, $table_results );
 }
 
 sub recurse_fill {
@@ -129,14 +131,14 @@ sub map_to_mapped {
 }
 
 sub config_to_json_tpl {
-  my ( $mapped_data, $table_hash ) = @_;
+  my ( $mapped_data, $table_hash, $table_results ) = @_;
   
   my $pages = forcearray( $conf->{'page'} );
   
   #print Dumper( $mapped{ 'survey_info' } );
   #exit;
     
-  my $ctx = { data => $mapped_data, report_id => $report_run_id, tables => $table_hash };
+  my $ctx = { data => $mapped_data, report_id => $report_run_id, tables => $table_hash, results => $table_results };
   $TPL::ctx = $ctx;
   
   my $pagearr = [];
@@ -343,11 +345,8 @@ sub sources_to_maps {
 }
 
 sub run_table {
-  #my ( $tb_name ) = @_;
-  #my $table = $tables->{ $tb_name };
-  my $table = shift;
+  my ( $table, $table_results ) = @_;
   
-  #print Dumper( \%map );
   my $odataname = xval $table->{'ds'};
   my $dataname = $map{ $odataname };
   if( !$dataname ) {
@@ -377,11 +376,26 @@ sub run_table {
   
   my $group_stack = [];
   my $byname = {};
+  my $results = {};
+  my $add_to_ctx = {
+    byname => $byname,
+    table_results => $table_results,
+    results => \$results # reference so that they can be changed
+  };
   my $output = {};
   
-  run_type( $output, 'header', $group_stack, $table, $rows, $byname, $table->{'group'} ? 1 : 0 );
-  run_type( $output, 'detail', $group_stack, $table, $rows, $byname, $table->{'group'} ? 1 : 0 );
-  run_type( $output, 'footer', $group_stack, $table, $rows, $byname, $table->{'group'} ? 1 : 0 );
+  my $hdelay = headers_delayed( $table, 'header' );
+  if( $hdelay ) {
+    run_type( $output, 'header', $group_stack, $table, $rows, $add_to_ctx, $table->{'group'} ? 1 : 0, 'no' );
+  }
+  else {
+    run_type( $output, 'header', $group_stack, $table, $rows, $add_to_ctx, $table->{'group'} ? 1 : 0 );
+  }
+  run_type( $output, 'detail', $group_stack, $table, $rows, $add_to_ctx, $table->{'group'} ? 1 : 0 );
+  run_type( $output, 'footer', $group_stack, $table, $rows, $add_to_ctx, $table->{'group'} ? 1 : 0 );
+  if( $hdelay ) {
+    run_type( $output, 'header', $group_stack, $table, $rows, $add_to_ctx, $table->{'group'} ? 1 : 0, 'yes' );
+  }
   
   if( $table->{'chart'} ) {
     my $charts = forcearray( $table->{'chart'} );
@@ -398,7 +412,17 @@ sub run_table {
     $output->{'islegend'} = 1;
   }
   
-  return $output;
+  return ( $output, $results );
+}
+
+sub headers_delayed {
+  my ( $table, $type ) = @_;
+  my $headers = forcearray( $table->{$type} );
+  for my $header ( @$headers ) {
+    my $hdelay = $header->{'delay'} ? 1 : 0;
+    return 1 if( $hdelay );
+  }
+  return 0;
 }
 
 sub find_xys {
@@ -561,15 +585,30 @@ sub group_data {
   return \%hash;
 }
 
+sub select_delayed {
+  my ( $set, $delayed ) = @_;
+  my $yes = ( $delayed eq 'yes' ) ? 1 : 0;
+  my @selected_headers;
+  for my $header ( @$set ) { 
+    my $hdelayed = $header->{'delay'} ? 1 : 0;
+    if( $yes == $hdelayed ) {
+      push( @selected_headers, $header );
+    }
+  }
+  return \@selected_headers;
+}
+
 sub run_type {
-  my ( $output, $type_name, $group_stack, $table, $rows, $byname, $grouped ) = @_;
+  my ( $output, $type_name, $group_stack, $table, $rows, $add_to_ctx, $grouped, $delayed ) = @_;
   
   #my $tablen = xval( $table->{'name'} );
   #print STDERR "table: $tablen, type: $type_name\n";
   
   my $headers = forcearray( $table->{$type_name} );
+  if( $delayed ) { $headers = select_delayed( $headers, $delayed ); }
+  #return if( !@$headers );
   
-  run_raw_type( $output, $type_name, $group_stack, $headers, $rows, $byname, $grouped );
+  run_raw_type( $output, $type_name, $group_stack, $headers, $rows, $add_to_ctx, $grouped );
   if( $type_name eq 'detail' && $table->{'group'} ) {
     my $groups = forcearray( $table->{'group'} );
     for my $group ( @$groups ) {
@@ -607,8 +646,27 @@ sub run_type {
       my $gpfooters = forcearray( $group->{'footer'} );
       
       my @gpkeys = keys %$gprows;
+      if( $group->{'bysort'} ) {
+        my $bysort = xval $group->{'bysort'};
+        if( $bysort eq 'asc_num' ) {
+          @gpkeys = sort { $a <=> $b } @gpkeys;
+        }
+        if( $bysort eq 'desc_num' ) {
+          @gpkeys = sort { $b <=> $a } @gpkeys;
+        }
+        if( $bysort eq 'asc' ) {
+          @gpkeys = sort { $a cmp $b } keys @gpkeys;
+        }
+        if( $bysort eq 'desc' ) {
+          @gpkeys = sort { $b cmp $a } @gpkeys;
+        }
+      }
+      
       my @allxys;
+      my $gi = -1;
       for my $key ( @gpkeys ) {
+        $gi++;
+        $add_to_ctx->{'byname'}{'gi'} = $gi;
         #print "Group key: $key\n";
         
         my $gpoutput = {};
@@ -616,14 +674,37 @@ sub run_type {
         
         my $subrows = $gprows->{ $key };
         
-        run_raw_type( $gpoutput, 'header', $group_stack, $gpheaders, $subrows, $byname, $grouped );
+        if( $group->{'pre'} ) {
+          my $ctx = { groups => $group_stack, rows => $subrows, row1 => $subrows->[0], %$add_to_ctx } ;
+          #print STDERR Dumper( $add_to_ctx );
+          $TPL::ctx = $ctx;
+          my $val = xval( $group->{'pre'} ) || '';
+          if( $val =~ m/\{/ ) {
+            $val = fill_in_string( $val, $ctx, 'TPL' );
+          }
+          $gpoutput->{'pre'} = $val if( $val ne '' );
+        }
+        
+        my $hdelay = headers_delayed( $group, 'header' );
+        if( $hdelay ) {
+          #print STDERR "Running group non-delayed headers\n";
+          run_raw_type( $gpoutput, 'header', $group_stack, $gpheaders, $subrows, $add_to_ctx, $grouped, 'no' );
+        }
+        else {
+          run_raw_type( $gpoutput, 'header', $group_stack, $gpheaders, $subrows, $add_to_ctx, $grouped );
+        }
         
         my $gpdetails = forcearray( $group->{'detail'} );
         
         #run_raw_type( 'details', $gpdetails, $subrows );
-        run_type( $gpoutput, 'detail', $group_stack, $group, $subrows, $byname, $grouped );
+        run_type( $gpoutput, 'detail', $group_stack, $group, $subrows, $add_to_ctx, $grouped );
         
-        run_raw_type( $gpoutput, 'footer', $group_stack, $gpfooters, $subrows, $byname, $grouped );
+        if( $hdelay ) {
+          #print STDERR "Running group delayed headers\n";
+          run_raw_type( $gpoutput, 'header', $group_stack, $gpheaders, $subrows, $add_to_ctx, $grouped, 'yes' );
+        }
+        
+        run_raw_type( $gpoutput, 'footer', $group_stack, $gpfooters, $subrows, $add_to_ctx, $grouped );
         
         my $gpflags = $gpoutput->{'flags'};
         if( %$gpflags ) {
@@ -743,8 +824,34 @@ sub run_type {
         my $sets = $gp->{'sets'};
         my $gi = 0;
         for my $set ( @$sets ) {
-          fill_in_rows( $set, 'header', $gi++ );
+          fill_in_rows( $set, 'header', $gi );
+          fill_in_rows( $set, 'footer', $gi );
+          $gi++;
         }
+      }
+      
+      if( $group->{'flip'} ) {
+        my @newheaders;
+        my $html = "<table>";
+        for my $gpset ( @$gpsets ) {
+          my $headers = XML::Bare::forcearray( $gpset->{'header'} );
+          for my $header ( @$headers ) { $html .= "<tr>" . $header . "</tr>"; }
+          my $details = XML::Bare::forcearray( $gpset->{'detail'} );
+          for my $detail ( @$details ) { $html .= "<tr>" . $detail . "</tr>"; }
+        }
+        $html .= "</table>";
+        
+        #print STDERR Dumper( $html );
+        my $flipped = TPL::flip_table( $html );
+        $flipped =~ s|</?table>||g;
+        my @Xrows = split( '</tr>', $flipped );
+        my @Xrows2;
+        pop @Xrows;
+        for my $Xrow ( @Xrows ) {
+          push( @Xrows2, $Xrow . "</tr>" );
+        }
+        #print STDERR Dumper( $flipped );
+        $gp->{'sets'} = [ { detail => \@Xrows2 } ];
       }
     }
   }
@@ -908,7 +1015,10 @@ sub fill_xy_val {
 }
 
 sub run_raw_type {
-  my ( $output, $type_name, $group_stack, $headers, $rows, $byname, $grouped ) = @_;
+  my ( $output, $type_name, $group_stack, $headers, $rows, $add_to_ctx, $grouped, $delayed ) = @_;
+  
+  if( $delayed ) { $headers = select_delayed( $headers, $delayed ); }
+  #return if( !@$headers );
   
   my $row1 = $rows->[ 0 ];
   my $looprows = [ 0 ];
@@ -923,7 +1033,7 @@ sub run_raw_type {
   for( my $i=0;$i<$numrows;$i++ ) {
     my $looprow = $looprows->[ $i ];
     
-    my $ctx = { groups => $group_stack, row => $looprow, i => $i, row1 => $row1, rows => $rows, byname => $byname } ;
+    my $ctx = { groups => $group_stack, row => $looprow, i => $i, row1 => $row1, rows => $rows, %$add_to_ctx } ;
     $TPL::ctx = $ctx;
     
     for my $header ( @$headers ) {
@@ -940,7 +1050,7 @@ sub run_raw_type {
             }
             #print $val;
           }
-          $byname->{ $name } = $val;
+          $add_to_ctx->{'byname'}{ $name } = $val;
         }
       }
       if( $header->{'cond'} ) {
@@ -1027,14 +1137,21 @@ sub run_raw_type {
           }
         }
         if( $th->{'name'} ) {
-          $byname->{ xval( $th->{'name'} ) } = $val;
+          $add_to_ctx->{'byname'}{ xval( $th->{'name'} ) } = $val;
         }
+        
+        my %valid_atts = (
+            colspan => 1,
+            width => 1,
+            align => 1,
+            valign => 1
+          );
         my $cs = '';
-        if( $th->{'colspan'} ) {
-          $cs = " colspan=\"" . xval( $th->{'colspan'} ) . "\"";
-        }
-        if( $th->{'width'} ) {
-          $cs = " width=\"" . xval( $th->{'width'} ) . "\"";
+        for my $key ( keys %valid_atts ) {
+          my $node = $th->{ $key };
+          if( $node ) {
+            $cs .= " $key=\"".$node->{'value'}."\"";
+          }
         }
         
         if( $th->{'fullnode'} ) {
@@ -1152,6 +1269,9 @@ sub run_footers {
 package TPL;
 use Data::Dumper;
 use List::Util qw/min max/;
+use XML::Bare qw/xval forcearray/;
+use lib '../../perl-HTML-TableTranspose/lib';
+use HTML::TableTranspose qw/flip_table/;
 our $ctx;
 
 sub perc {
@@ -1449,4 +1569,9 @@ sub color_block {
   my $i = shift;
   my $color = std_color( $i );
   return "<div style='width: 20px; height: 20px; background: $color'>&nbsp;</div>";
+}
+
+# Note this is not standard internationally
+sub format_thousands {
+  return reverse join ",", (reverse shift) =~ /(\d{1,3})/g;
 }
