@@ -1,6 +1,5 @@
 #!/usr/bin/perl -w
 use strict;
-use XML::Bare qw/forcearray xval/;
 use Data::Dumper;
 #use Text::Template qw/fill_in_string/;
 use lib '../../Template-Bare/lib';
@@ -8,6 +7,9 @@ use Template::Bare qw/fill_in_string tpl_to_chunks create_delayed fill_in_delaye
 use JSON::XS;
 use lib '../../HTML-Bare/blib/lib';
 use lib '../../HTML-Bare/blib/arch';
+use lib '../../perl-XML-Bare/blib/lib';
+use lib '../../perl-XML-Bare/blib/arch';
+use XML::Bare qw/forcearray xval/;
 use HTML::Bare qw//;
 use Carp;
 
@@ -56,7 +58,7 @@ sub transform_data {
     elsif( $section eq 'all' ) {}
     else { next; }
     #run_table( 'table1' );
-    my ( $tb_out, $tb_result ) = run_table( $tables->{ $tb_name }, $table_results );
+    my ( $tb_out, $tb_result ) = run_table( $tables->{ $tb_name }, $table_results, $mapped_data );
     #my $tb_name = xval $table->{'name'};
     $table_outputs->{ $tb_name } = $tb_out;
     $table_results->{ $tb_name } = $tb_result;
@@ -345,7 +347,7 @@ sub sources_to_maps {
 }
 
 sub run_table {
-  my ( $table, $table_results ) = @_;
+  my ( $table, $table_results, $mapped_data ) = @_;
   
   my $odataname = xval $table->{'ds'};
   my $dataname = $map{ $odataname };
@@ -378,6 +380,7 @@ sub run_table {
   my $byname = {};
   my $results = {};
   my $add_to_ctx = {
+    data => $mapped_data,
     byname => $byname,
     table_results => $table_results,
     results => \$results # reference so that they can be changed
@@ -1574,4 +1577,16 @@ sub color_block {
 # Note this is not standard internationally
 sub format_thousands {
   return reverse join ",", (reverse shift) =~ /(\d{1,3})/g;
+}
+
+sub format_dollars {
+  my $val = shift;
+  my $whole = int( $val );
+  if( $val eq $whole ) {
+    return "\$$val";
+  }
+  my $cents = ( $val - $whole ) * 100;
+  $cents = int( $cents + 0.5 );
+  if( $cents < 10 ) { $cents = "0$cents"; }
+  return "\$$whole.$cents";
 }
