@@ -3,6 +3,8 @@ use strict;
 use lib '../../perl-Pg-Helper/lib';
 use Pg::Helper;
 use Data::Dumper;
+use lib '../../perl-XML-Bare/blib/lib';
+use lib '../../perl-XML-Bare/blib/arch';
 use XML::Bare qw/xval forcearray/;
 
 my $report_type = $ARGV[0];
@@ -86,6 +88,7 @@ sub dump_query {
   #    </where>
   my $cwheres = forcearray( $conf->{'where'} );
   my $where = {};
+  my $lookup_col = '';
   for my $cwhere ( @$cwheres ) {
     my $col = xval $cwhere->{'col'};
     my $val;
@@ -101,13 +104,20 @@ sub dump_query {
       my $ds_col = xval $src->{'column'};
       #print STDERR Dumper( $xml );
       my $xmlrows = forcearray( $xml->{ $ds }{'row'} );
-      my @values;
+      my %valhash;
+      $cwhere->{'valhash'} = \%valhash;
       #print STDERR Dumper( $xmlrows );
       for my $xmlrow ( @$xmlrows ) {
         my $value = xval $xmlrow->{ $ds_col };
-        push( @values, $value );
+        #push( @values, $value );
+        $valhash{ $value } ||= [];
+        my $arr = $valhash{ $value };
+        push( @$arr, $xmlrow );
       }
-      $val = \@values;
+      if( $src->{'link'} ) {
+        $lookup_col = xval( $cwhere->{'colraw'} ) || $col;
+      }
+      $val = [ keys %valhash ];
     }
     
     $where->{ $col } = $val;
@@ -125,6 +135,35 @@ sub dump_query {
   #print STDERR Dumper( $res2 );
   #exit;
   $xml->{$name} = $res2;
+  
+  if( $lookup_col && @$rows ) {
+    my %lookup;
+    for my $row ( @$rows ) {
+      my $val = xval $row->{ $lookup_col };
+      #print STDERR $val . " - " . Dumper( $row );
+      $lookup{ $val } = $row;
+    }
+    
+    for my $cwhere ( @$cwheres ) {
+      if( $cwhere->{'value_source'} ) {
+        my $src = $cwhere->{'value_source'};
+        if( $src->{'link'} ) {
+          my $link = xval $src->{'link'};
+          my $ds_col = xval $src->{'column'};
+          my $valhash = $cwhere->{'valhash'};
+          for my $key ( %$valhash ) {
+            my $nodeset = $valhash->{ $key };
+            my $linked = $lookup{ $key };
+            for my $node ( @$nodeset ) {
+              $node->{ $link } = $linked;
+              #print STDERR Dumper( $src );
+              #print STDERR Dumper( $node );
+            }
+          }
+        }
+      }
+    }
+  }
 }
 sub db_rows_to_xml_hash {
   my $rows = shift;
@@ -159,10 +198,10 @@ sub dumpt {
   
   my $res2 = $sql->query( "$loc.$func($param)", \@qcols, {} );
   #print Dumper( $res2 );
-  my @rows = db_rows_to_xml_hash( $res2 );
+  my $rows = db_rows_to_xml_hash( $res2 );
   
-  my $res3 = { row => \@rows };
-  if( !@rows ) {
+  my $res3 = { row => $rows };
+  if( !$rows ) {
     $res3->{'empty'} = 1;
   }
   $xml->{ $func } = $res3;
