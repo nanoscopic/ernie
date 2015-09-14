@@ -65,7 +65,7 @@ sub transform_data {
   }
   
   if( $conf->{'json'} ) {
-    my $json_tpl = XML::Bare::Object::simplify( $conf->{'json'} );
+    my $json_tpl = XML::Bare::simplify( $conf->{'json'} );
     my $ctx = { data => $mapped_data, report_id => $report_run_id };
     $TPL::ctx = $ctx;
     recurse_fill( $json_tpl, $ctx );
@@ -485,7 +485,7 @@ sub pass_chart_options {
   my $type = $chart->{'type'};
   my $o = {
     type => xval( $chart->{'type'} ),
-    options => XML::Bare::Object::simplify( $chart->{'options'} )
+    options => XML::Bare::simplify( $chart->{'options'} )
   };
   if( $chart->{'onDraw'} ) {
     $o->{'onDraw'} = xval( $chart->{'onDraw'} );
